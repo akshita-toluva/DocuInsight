@@ -2,6 +2,7 @@
 package com.docuinsight.docuinsight.controller;
 
 import com.docuinsight.docuinsight.model.AuthResponse;
+import com.docuinsight.docuinsight.model.LoginRequest;
 import com.docuinsight.docuinsight.model.RegisterRequest;
 import com.docuinsight.docuinsight.service.AuthService;
 import lombok.RequiredArgsConstructor;
@@ -24,4 +25,10 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(
+            @RequestBody LoginRequest request){
+        AuthResponse response=authService.login(request);
+        return ResponseEntity.ok(response);
+    }
 }

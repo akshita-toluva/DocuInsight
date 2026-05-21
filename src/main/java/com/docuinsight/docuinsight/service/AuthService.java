@@ -4,6 +4,8 @@ import com.docuinsight.docuinsight.model.AuthResponse;
 import com.docuinsight.docuinsight.model.RegisterRequest;
 import com.docuinsight.docuinsight.model.User;
 import com.docuinsight.docuinsight.repository.UserRepository;
+import com.docuinsight.docuinsight.security.JwtService;
+import com.docuinsight.docuinsight.model.LoginRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     public AuthResponse register(RegisterRequest request)
     {
@@ -33,5 +36,20 @@ public class AuthService {
         userRepository.save(user);
         //Step 5 return success response
         return new AuthResponse("Registration Successful",null);
+    }
+
+    public AuthResponse login(LoginRequest request)
+    {
+        User user=userRepository.findByEmail(request.getEmail())
+                .orElseThrow(()->
+                        new RuntimeException("User Not Found"));
+        if(!passwordEncoder.matches(
+                request.getPassword(),user.getPassword()))
+        {
+            throw new RuntimeException("Invalid Password");
+        }
+
+        String token = jwtService.generateToken(user.getEmail());
+        return new AuthResponse("Login Successful",token);
     }
 }
