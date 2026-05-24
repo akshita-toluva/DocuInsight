@@ -9,7 +9,7 @@ public class DocuinsightApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(DocuinsightApplication.class, args);
 		System.out.println("Hello");
-		//eyJhbGciOiJIUzM4NCJ9 token for login Akshita password:mypassword123
+
 
 	}
 

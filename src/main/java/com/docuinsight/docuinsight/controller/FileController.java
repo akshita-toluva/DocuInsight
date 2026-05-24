@@ -1,8 +1,10 @@
 package com.docuinsight.docuinsight.controller;
 
+import com.docuinsight.docuinsight.model.ExtractionResponse;
 import com.docuinsight.docuinsight.model.FileUploadResponse;
 import com.docuinsight.docuinsight.model.UploadedFile;
 import com.docuinsight.docuinsight.service.FileService;
+import com.docuinsight.docuinsight.service.TextExtractionService;
 import io.jsonwebtoken.io.IOException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +19,7 @@ import java.util.List;
 @RequestMapping("/api/files")
 public class FileController {
     private final FileService fileService;
+    private final TextExtractionService textExtractionService;
 
     @PostMapping("/upload")
     public ResponseEntity<FileUploadResponse> uploadFile(
@@ -33,4 +36,10 @@ public class FileController {
         return ResponseEntity.ok(files);
     }
 
+    @PostMapping("/{fileId}/extract")
+    public ResponseEntity<ExtractionResponse> extractText(
+            @PathVariable Long fileId) throws IOException{
+        ExtractionResponse response=textExtractionService.extractText(fileId);
+        return ResponseEntity.ok(response);
+    }
 }

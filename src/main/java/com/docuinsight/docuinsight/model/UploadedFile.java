@@ -38,6 +38,9 @@ public class UploadedFile {
     @Column(nullable = false)
     private long fileSize;
 
+    @Column(columnDefinition = "TEXT")
+    private String extractedText;
+
     @Column(name="uploaded_at")
     private LocalDateTime uploadedAt;
 
