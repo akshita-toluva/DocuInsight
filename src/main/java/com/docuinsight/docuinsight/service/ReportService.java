@@ -72,7 +72,7 @@ public class ReportService {
         //Extract Text
         ExtractionResponse extractText;
         try {
-            extractText = textExtractionService.extractText(file.getId());
+            extractText = textExtractionService.extractText(file.getId(), user.getEmail());
         } catch (Exception e) {
             throw new RuntimeException(
                     "Could not extract text from file: " + e.getMessage(), e);

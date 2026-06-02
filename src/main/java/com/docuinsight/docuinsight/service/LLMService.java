@@ -51,6 +51,13 @@ public class LLMService {
             throw new IllegalArgumentException("Extracted text is empty — cannot generate report.");
         }
 
+        // DEBUG: Log the API key
+        log.info("===== LLM SERVICE DEBUG =====");
+        log.info("API Key: {}", (apiKey != null ? apiKey.substring(0, Math.min(10, apiKey.length())) + "..." : "NULL"));
+        log.info("API Key Length: {}", (apiKey != null ? apiKey.length() : 0));
+        log.info("API URL: {}", apiUrl);
+        log.info("=============================");
+
         String safeText  = truncateText(extractedText);
         String fullPrompt = prompt + "\n\n--- DOCUMENT CONTENT ---\n\n" + safeText;
         String requestBody = buildRequestBody(fullPrompt);

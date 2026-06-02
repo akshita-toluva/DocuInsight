@@ -6,7 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 
 @Entity
@@ -23,7 +23,7 @@ public class UploadedFile {
 
     @ManyToOne
     @JoinColumn(name="user_id",nullable = false)
-    @JsonIgnoreProperties // Drops these fields from the JSON serialization pipeline
+    @JsonIgnore
     private User user;
 
     @Column(nullable = false)

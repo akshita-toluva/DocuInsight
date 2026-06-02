@@ -5,7 +5,7 @@ import com.docuinsight.docuinsight.model.UploadedFile;
 import com.docuinsight.docuinsight.model.User;
 import com.docuinsight.docuinsight.repository.UploadedFileRepository;
 import com.docuinsight.docuinsight.repository.UserRepository;
-import io.jsonwebtoken.io.IOException;
+import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;

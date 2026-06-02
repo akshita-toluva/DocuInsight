@@ -5,11 +5,13 @@ import com.docuinsight.docuinsight.model.UploadedFile;
 import com.docuinsight.docuinsight.repository.UploadedFileRepository;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
-import io.jsonwebtoken.io.IOException;
+import java.io.IOException;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -26,12 +28,18 @@ public class TextExtractionService {
     }
 
     // METHOD called by FileController when POST /api/files/{fileId}/extract is hit
-    public ExtractionResponse extractText(Long fieldId) throws IOException{
+    public ExtractionResponse extractText(Long fieldId,String email) throws IOException{
 
         // Step 1: Find the file record in DB by ID
         // If ID doesn't exist, throw a clear error
         UploadedFile file=fileRepository.findById(fieldId)
                 .orElseThrow(()-> new RuntimeException("File not found with id: " + fieldId));
+
+        //check ownership
+        if (!file.getUser().getEmail().equals(email)) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Access denied: you do not own this file.");
+        }
 
         // Step 2: Check if text was already extracted before
         // If yes — skip re-processing, return cached text from DB
@@ -57,7 +65,8 @@ public class TextExtractionService {
             extractedText = extractFromCSV(file.getFilePath());
         }
         else {
-            throw new RuntimeException("Unsupported file type: " + file.getFileType());
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Unsupported file type: " + file.getFileType());
         }
 
         // Step 4: Save extracted text back into the DB record
@@ -107,7 +116,8 @@ public class TextExtractionService {
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         } catch (java.io.IOException e) {
-            throw new RuntimeException(e);
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "File not found on disk: " + filePath);
         }
 
         return sb.toString();

@@ -7,8 +7,10 @@ import com.docuinsight.docuinsight.repository.UserRepository;
 import com.docuinsight.docuinsight.security.JwtService;
 import com.docuinsight.docuinsight.model.LoginRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -22,7 +24,8 @@ public class AuthService {
         //step 1 check if email already exists
         if(userRepository.existsByEmail(request.getEmail()))
         {
-            throw new RuntimeException("Email already registered");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Email already registered");
         }
         //step 2 Hash the password
         String hashedPassword =passwordEncoder.encode(request.getPassword());
@@ -42,11 +45,14 @@ public class AuthService {
     {
         User user=userRepository.findByEmail(request.getEmail())
                 .orElseThrow(()->
-                        new RuntimeException("User Not Found"));
+                        new ResponseStatusException(
+                                HttpStatus.UNAUTHORIZED, "Invalid email or password"));
         if(!passwordEncoder.matches(
                 request.getPassword(),user.getPassword()))
         {
-            throw new RuntimeException("Invalid Password");
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "Invalid email or password");
+
         }
 
         String token = jwtService.generateToken(user.getEmail());
