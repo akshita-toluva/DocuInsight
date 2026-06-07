@@ -31,7 +31,7 @@ public class FileService {
         String contentType=file.getContentType();
         if(contentType==null || (!contentType.equals("application/pdf")) && (!contentType.equals("text/csv")))
         {
-            throw new RuntimeException("Only PDF and CSV files are allowed");
+            throw new IllegalArgumentException("Unsupported file type: " + contentType + ". Only PDF and CSV files are allowed.");
         }
 
         //step 2 Find User

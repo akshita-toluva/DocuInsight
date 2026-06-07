@@ -93,7 +93,7 @@ public class ReportService {
         report.setUser(user);
         report.setReportType(request.getReportType());
         report.setStatus(Report.ReportStatus.PROCESSING);
-        report.setCustomPrompt(report.getCustomPrompt());
+        report.setCustomPrompt(request.getCustomPrompt());
         report = reportRepository.save(report);
 
         //Call Gemini
@@ -149,7 +149,7 @@ public class ReportService {
     public ReportResponse getReport(Long reportId, String email)
     {
         User user=userRepository.findByEmail(email)
-                .orElseThrow(()-> new RuntimeException("\"User with email not found: \" + email"));
+                .orElseThrow(()-> new RuntimeException("User with email not found: " + email));
 
         Report report=reportRepository.findByIdAndUserId(reportId,user.getId())
                 .orElseThrow(()->new RuntimeException("Report not found with ID: " + reportId));
@@ -157,11 +157,11 @@ public class ReportService {
         return ReportResponse.from(report);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void deleteReport(Long reportId,String email)
     {
         User user=userRepository.findByEmail(email)
-                .orElseThrow(()-> new RuntimeException("\"User with email not found: \" + email"));
+                .orElseThrow(()-> new RuntimeException("User with email not found: " + email));
 
         Report report=reportRepository.findByIdAndUserId(reportId,user.getId())
                 .orElseThrow(()->new RuntimeException("Report not found with ID: " + reportId));

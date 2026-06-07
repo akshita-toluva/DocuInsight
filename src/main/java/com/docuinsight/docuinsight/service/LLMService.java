@@ -9,12 +9,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
-import org.springframework.http.HttpStatusCode;
 
 import java.time.Duration;
 
@@ -24,17 +24,18 @@ public class LLMService {
     private static final Logger log = LoggerFactory.getLogger(LLMService.class);
     private static final int MAX_TEXT_CHARS = 30_000;
 
-    @Value("${gemini.api.key}")
-    private String apiKey;
+    // Groq config
+    @Value("${groq.api.key}")
+    private String groqApiKey;
 
-    @Value("${gemini.api.url}")
-    private String apiUrl;
+    @Value("${groq.api.url}")
+    private String groqApiUrl;
 
-    @Value("${gemini.api.timeout:30}")
+    @Value("${groq.api.model:llama-3.3-70b-versatile}")
+    private String groqModel;
+
+    @Value("${groq.api.timeout:90}")
     private int timeoutSeconds;
-
-    @Value("${gemini.api.max-tokens:8192}")
-    private int maxTokens;
 
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
@@ -51,131 +52,120 @@ public class LLMService {
             throw new IllegalArgumentException("Extracted text is empty — cannot generate report.");
         }
 
-        // DEBUG: Log the API key
-        log.info("===== LLM SERVICE DEBUG =====");
-        log.info("API Key: {}", (apiKey != null ? apiKey.substring(0, Math.min(10, apiKey.length())) + "..." : "NULL"));
-        log.info("API Key Length: {}", (apiKey != null ? apiKey.length() : 0));
-        log.info("API URL: {}", apiUrl);
-        log.info("=============================");
-
-        String safeText  = truncateText(extractedText);
+        String safeText = truncateText(extractedText);
         String fullPrompt = prompt + "\n\n--- DOCUMENT CONTENT ---\n\n" + safeText;
-        String requestBody = buildRequestBody(fullPrompt);
 
-        log.info("Calling Gemini API. Text length: {} chars", safeText.length());
+        log.info("Generating report via Groq. Text length: {} chars", safeText.length());
 
+        return callGroq(fullPrompt);
+    }
+
+    private String callGroq(String prompt) {
         try {
+            String requestBody = buildGroqRequestBody(prompt);
+
             String response = webClient.post()
-                    .uri(apiUrl + "?key=" + apiKey)
+                    .uri(groqApiUrl)
+                    .header("Authorization", "Bearer " + groqApiKey)
                     .bodyValue(requestBody)
                     .retrieve()
                     .onStatus(status -> status == HttpStatus.TOO_MANY_REQUESTS, clientResponse ->
-                            Mono.error(new RuntimeException(
-                                    "Gemini API rate limit reached. Please wait and try again.")))
+                            clientResponse.bodyToMono(String.class).flatMap(body -> {
+                                log.warn("Groq rate limit hit: {}", body);
+                                return Mono.error(new RuntimeException(
+                                        "Groq rate limit hit. Please wait a moment and try again."));
+                            }))
                     .onStatus(status -> status == HttpStatus.UNAUTHORIZED, clientResponse ->
                             Mono.error(new RuntimeException(
-                                    "Invalid Gemini API key. Check your configuration.")))
+                                    "Invalid Groq API key. Check your groq.api.key in application.properties.")))
                     .onStatus(status -> status == HttpStatus.BAD_REQUEST, clientResponse ->
                             clientResponse.bodyToMono(String.class).flatMap(body ->
                                     Mono.error(new RuntimeException(
-                                            "Gemini rejected the request: " + extractGeminiError(body)))))
+                                            "Groq rejected the request: " + body))))
                     .onStatus(HttpStatusCode::is5xxServerError, clientResponse ->
                             Mono.error(new RuntimeException(
-                                    "Gemini service is temporarily unavailable. Try again later.")))
+                                    "Groq service temporarily unavailable. Try again later.")))
                     .bodyToMono(String.class)
                     .timeout(Duration.ofSeconds(timeoutSeconds))
                     .block();
 
-            return parseGeminiResponse(response);
+            return parseGroqResponse(response);
 
         } catch (WebClientResponseException e) {
-            log.error("WebClient error: status={}", e.getStatusCode());
-            throw new RuntimeException("Gemini API error: " + e.getMessage(), e);
+            log.error("Groq WebClient error: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new RuntimeException("Groq API error: " + e.getMessage(), e);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Unexpected error calling Gemini", e);
-            throw new RuntimeException("Unexpected error contacting Gemini AI: " + e.getMessage(), e);
+            log.error("Unexpected error calling Groq", e);
+            throw new RuntimeException("Unexpected error contacting Groq AI: " + e.getMessage(), e);
         }
     }
 
-    private String parseGeminiResponse(String responseBody) {
+    private String parseGroqResponse(String responseBody) {
         if (responseBody == null || responseBody.isBlank()) {
-            throw new RuntimeException("Gemini returned an empty response.");
+            throw new RuntimeException("Groq returned an empty response.");
         }
         try {
             JsonNode root = objectMapper.readTree(responseBody);
 
+            // Check for error field
             if (root.has("error")) {
-                throw new RuntimeException("Gemini API error: " +
-                                           root.path("error").path("message").asText("Unknown error"));
+                throw new RuntimeException("Groq API error: " +
+                        root.path("error").path("message").asText("Unknown error"));
             }
 
-            JsonNode candidates = root.path("candidates");
-            if (candidates.isMissingNode() || candidates.isEmpty()) {
-                JsonNode feedback = root.path("promptFeedback");
-                if (!feedback.isMissingNode()) {
-                    throw new RuntimeException("Gemini blocked the request: " +
-                                               feedback.path("blockReason").asText("UNKNOWN"));
-                }
-                throw new RuntimeException("Gemini returned no candidates in response.");
+            // Parse OpenAI-compatible response format
+            JsonNode choices = root.path("choices");
+            if (choices.isMissingNode() || choices.isEmpty()) {
+                throw new RuntimeException("Groq returned no choices in response.");
             }
 
-            JsonNode firstCandidate = candidates.get(0);
-            String finishReason = firstCandidate.path("finishReason").asText("STOP");
+            String content = choices.get(0)
+                    .path("message")
+                    .path("content")
+                    .asText("");
 
-            if ("SAFETY".equals(finishReason)) {
-                throw new RuntimeException("Gemini blocked the response due to safety filters.");
-            }
-            if ("RECITATION".equals(finishReason)) {
-                throw new RuntimeException("Gemini stopped due to recitation policy.");
-            }
-            if ("MAX_TOKENS".equals(finishReason)) {
-                log.warn("Gemini hit max tokens — response may be truncated.");
+            if (content.isBlank()) {
+                throw new RuntimeException("Groq generated an empty report. Try again.");
             }
 
-            JsonNode parts = firstCandidate.path("content").path("parts");
-            if (parts.isMissingNode() || parts.isEmpty()) {
-                throw new RuntimeException("Gemini response has no content parts.");
-            }
-
-            StringBuilder result = new StringBuilder();
-            for (JsonNode part : parts) {
-                result.append(part.path("text").asText(""));
-            }
-
-            String finalText = result.toString().trim();
-            if (finalText.isBlank()) {
-                throw new RuntimeException("Gemini generated an empty report. Try again.");
-            }
-
-            log.info("Gemini response received. Output length: {} chars", finalText.length());
-            return finalText;
+            log.info("Groq response received successfully. Output length: {} chars", content.length());
+            return content;
 
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to parse Gemini response", e);
-            throw new RuntimeException("Failed to parse Gemini response: " + e.getMessage(), e);
+            log.error("Failed to parse Groq response", e);
+            throw new RuntimeException("Failed to parse Groq response: " + e.getMessage(), e);
         }
     }
 
-    private String buildRequestBody(String prompt) {
+    private String buildGroqRequestBody(String prompt) {
         try {
             ObjectNode root = objectMapper.createObjectNode();
-            ArrayNode contents = root.putArray("contents");
-            ObjectNode contentNode = contents.addObject();
-            contentNode.putArray("parts").addObject().put("text", prompt);
 
-            ObjectNode generationConfig = root.putObject("generationConfig");
-            generationConfig.put("maxOutputTokens", maxTokens);
-            generationConfig.put("temperature", 0.3);
-            generationConfig.put("topP", 0.8);
-            generationConfig.put("topK", 40);
+            root.put("model", groqModel);
+            root.put("temperature", 0.3);
+            root.put("max_tokens", 4096);
+
+            ArrayNode messages = root.putArray("messages");
+
+            // System message
+            ObjectNode systemMsg = messages.addObject();
+            systemMsg.put("role", "system");
+            systemMsg.put("content",
+                    "You are a professional document analyst. " +
+                            "Provide clear, structured, and insightful analysis of documents.");
+
+            // User message with the actual prompt
+            ObjectNode userMsg = messages.addObject();
+            userMsg.put("role", "user");
+            userMsg.put("content", prompt);
 
             return objectMapper.writeValueAsString(root);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to build Gemini request body", e);
+            throw new RuntimeException("Failed to build Groq request body", e);
         }
     }
 
@@ -183,14 +173,6 @@ public class LLMService {
         if (text.length() <= MAX_TEXT_CHARS) return text;
         log.warn("Text truncated from {} to {} chars", text.length(), MAX_TEXT_CHARS);
         return text.substring(0, MAX_TEXT_CHARS) +
-               "\n\n[Document truncated. Analysis based on first portion.]";
-    }
-
-    private String extractGeminiError(String body) {
-        try {
-            return objectMapper.readTree(body).path("error").path("message").asText(body);
-        } catch (Exception e) {
-            return body;
-        }
+                "\n\n[Document truncated. Analysis based on first portion.]";
     }
 }
