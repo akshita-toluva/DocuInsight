@@ -1,0 +1,12 @@
+﻿,,,,,,,,,,,
+S.NO,Student,Telugu,Hindi,English,Mathematics,Science,Social Studies,Total,Avg,Grade,Result
+1,Student 1,46,33,85,86,54,50,354,59,,FAIL
+2,Student 2,72,64,67,77,67,70,417,69.5,,PASS
+3,Student 3,52,46,54,54,66,60,332,55.33333333,,PASS
+4,Student 4,61,36,88,67,78,32,362,60.33333333,,FAIL
+5,Student 5,53,33,71,96,54,66,373,62.16666667,,FAIL
+6,Student 6,40,38,54,98,87,43,360,60,,PASS
+7,Student 7,88,76,66,83,73,79,465,77.5,,PASS
+8,Student 8,54,65,78,65,53,99,414,69,,PASS
+9,Student 9,87,76,54,78,75,87,457,76.16666667,,PASS
+10,Student 10,44,42,79,77,32,98,372,62,,FAIL
