@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -29,9 +30,16 @@ public class FileService {
     public FileUploadResponse uploadFile(MultipartFile file,String email) throws IOException, java.io.IOException {
         //step 1 Validate FileType
         String contentType=file.getContentType();
-        if(contentType==null || (!contentType.equals("application/pdf")) && (!contentType.equals("text/csv")))
+        Set<String> allowedTypes= Set.of(
+                "application/pdf",
+                "text/csv",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "text/plain"
+        );
+       // if(contentType==null || (!contentType.equals("application/pdf")) && (!contentType.equals("text/csv")))
+        if(contentType==null || !allowedTypes.contains(contentType))
         {
-            throw new IllegalArgumentException("Unsupported file type: " + contentType + ". Only PDF and CSV files are allowed.");
+            throw new IllegalArgumentException("Unsupported file type: " + contentType + ". Only PDF, DOCX ,TXT, CSV files are allowed.");
         }
 
         //step 2 Find User

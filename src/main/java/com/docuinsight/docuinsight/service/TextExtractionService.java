@@ -9,12 +9,15 @@ import java.io.IOException;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 
 @Service
@@ -56,15 +59,26 @@ public class TextExtractionService {
         // Step 3: Route to correct extractor based on file type  saved as "PDF" or "CSV" during upload in FileService
         String extractedText;
         if (file.getFileType().equalsIgnoreCase("PDF") ||
-                file.getFileType().equalsIgnoreCase("application/pdf")) {
+                file.getFileType().equalsIgnoreCase("application/pdf"))
+        {
             extractedText = extractFromPDF(file.getFilePath());
         }
         else if (file.getFileType().equalsIgnoreCase("CSV") ||
                 file.getFileType().equalsIgnoreCase("text/csv") ||
-                file.getFileType().equalsIgnoreCase("application/csv")) {
+                file.getFileType().equalsIgnoreCase("application/csv"))
+        {
             extractedText = extractFromCSV(file.getFilePath());
         }
-        else {
+        else if(file.getFileType().equalsIgnoreCase("application/vnd.openxmlformatsofficedocument.wordprocessingml.document"))
+        {
+           extractedText=extractFromDOCX(file.getFilePath());
+        }
+        else if(file.getFileType().equalsIgnoreCase("text/plain") || file.getFileType().equalsIgnoreCase("TXT"))
+        {
+            extractedText=extractFromTXT(file.getFilePath());
+        }
+        else
+        {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Unsupported file type: " + file.getFileType());
         }
@@ -121,6 +135,27 @@ public class TextExtractionService {
         }
 
         return sb.toString();
+    }
+    /****************** CSV Extraction using Apache POI **************/
+    private String extractFromDOCX(String filePath) throws IOException{
+
+        StringBuilder sb=new StringBuilder();
+
+        try(XWPFDocument document=new XWPFDocument(
+                java.nio.file.Files.newInputStream(Paths.get(filePath)))){
+            for(XWPFParagraph para: document.getParagraphs()){
+                String text=para.getText();
+                if(text!=null && !text.isEmpty()){
+                    sb.append(text).append("\n");
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    /********** TXT Extraction — plain file read **********/
+    private String extractFromTXT(String filePath) throws IOException{
+        return Files.readString(Paths.get(filePath));
     }
 
 }
