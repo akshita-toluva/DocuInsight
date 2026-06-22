@@ -171,4 +171,48 @@ public class ReportService {
 
     }
 
+    @Transactional(readOnly = true)
+    public AskQuestionResponse askQuestion(Long reportId,String question,String email)
+    {
+        //Load and verify user
+        User user=userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException(
+                        "User not found: " + email
+                ));
+        //Load report and verify ownership
+        Report report=reportRepository.findByIdAndUserId(reportId,user.getId())
+                .orElseThrow(()->new RuntimeException(
+                        "Report not found with ID: " + reportId
+                ));
+        //Only completed reports have usable content
+        if(report.getStatus()!=Report.ReportStatus.COMPLETED)
+        {
+            throw new IllegalStateException(
+                    "You can ask questions only on completed reports. " +
+                            "Current status:  " + report.getStatus()
+            );
+        }
+        //Get extracted text from the file linked to this report
+        //Works because Report has @ManyToOne uploadedFile
+        String extractedText=report.getUploadedFile().getExtractedText();
+
+        if(extractedText==null || extractedText.isBlank())
+        {
+            throw new IllegalStateException(
+                    "No extracted text found. Extract from the file first. "
+            );
+        }
+
+        //Send to LLM and get answer
+        String answer= llmService.answerQuestion(extractedText,question);
+
+        return new AskQuestionResponse(
+                reportId,
+                report.getUploadedFile().getFileName(),
+                question,
+                answer,
+                java.time.LocalDateTime.now()
+        );
+    }
+
 }

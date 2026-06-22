@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -58,6 +59,38 @@ public class LLMService {
         log.info("Generating report via Groq. Text length: {} chars", safeText.length());
 
         return callGroq(fullPrompt);
+    }
+
+    public String answerQuestion(String extractedText,String question)
+    {
+        if(extractedText==null || extractedText.isBlank())
+        {
+            throw new IllegalArgumentException(
+                    "No document text available to answer from."
+            );
+        }
+        if(question==null || question.isBlank())
+        {
+            throw new IllegalArgumentException(
+                    "Question cannot be empty"
+            );
+        }
+
+        //Handle the 30000 char limit
+        String safeText=truncateText(extractedText);
+
+        //Build the Q&A prompt
+        //Stay inside the document itself
+        //The last sentence prevents hallucination when answer is absent
+        String prompt="You are a document expert. Answer the following question " +
+                "based ONLY on the document content provided below. " +
+                "If the answer is not in the document, state that clearly.\n\n" +
+                "Question: " + question + "\n\n" +
+                "--- DOCUMENT CONTENT ---\n\n" + safeText;
+
+        log.info("Answering Q&A via Groq. Question: {}", question);
+
+        return callGroq(prompt);
     }
 
     private String callGroq(String prompt) {

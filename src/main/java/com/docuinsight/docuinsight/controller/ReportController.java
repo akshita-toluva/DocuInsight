@@ -1,4 +1,6 @@
 package com.docuinsight.docuinsight.controller;
+import com.docuinsight.docuinsight.model.AskQuestionRequest;
+import com.docuinsight.docuinsight.model.AskQuestionResponse;
 import com.docuinsight.docuinsight.model.ReportRequest;
 import com.docuinsight.docuinsight.model.ReportResponse;
 import com.docuinsight.docuinsight.service.ReportExportService;
@@ -131,11 +133,45 @@ public class ReportController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
+    @PostMapping("/{reportId}/ask")
+    public ResponseEntity<?> askQuestion(
+            @PathVariable Long reportId,
+            @Valid @RequestBody AskQuestionRequest request,
+            Authentication authentication) {
+        try {
+            AskQuestionResponse response = reportService.askQuestion(
+                    reportId,
+                    request.getQuestion(),
+                    authentication.getName());
+            return ResponseEntity.ok(response);
+        } catch (IllegalStateException e) {
+            //Report not completed or no extracted text
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
+
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (RuntimeException e) {
+            if (e.getMessage() != null && e.getMessage().contains("not found")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", e.getMessage()));
+            }
+            log.error("Q&A error: reportId={}, user={}",
+                    reportId, authentication.getName(), e);
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @GetMapping("/{reportId}/export")
     public ResponseEntity<?> exportReport(
             @PathVariable Long reportId,
             @RequestParam(defaultValue = "pdf") String format,
-            Authentication authentication){
+            Authentication authentication)
+        {
         try{
             byte[] fileBytes= reportExportService.exportReport(
                     reportId,format, authentication.getName());

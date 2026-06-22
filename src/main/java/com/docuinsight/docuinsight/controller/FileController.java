@@ -39,8 +39,13 @@ public class FileController {
     @PostMapping("/{fileId}/extract")
     public ResponseEntity<ExtractionResponse> extractText(
             @PathVariable Long fileId,
-            @AuthenticationPrincipal String email) throws IOException{
-        ExtractionResponse response=textExtractionService.extractText(fileId,email);
+            @AuthenticationPrincipal String email) throws Exception {
+        ExtractionResponse response= null;
+        try {
+            response = textExtractionService.extractText(fileId,email);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         return ResponseEntity.ok(response);
     }
 }

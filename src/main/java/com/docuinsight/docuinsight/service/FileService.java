@@ -34,7 +34,10 @@ public class FileService {
                 "application/pdf",
                 "text/csv",
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "text/plain"
+                "text/plain",
+                "image/png",
+                "image/jpeg",
+                "image/webp"
         );
        // if(contentType==null || (!contentType.equals("application/pdf")) && (!contentType.equals("text/csv")))
         if(contentType==null || !allowedTypes.contains(contentType))
