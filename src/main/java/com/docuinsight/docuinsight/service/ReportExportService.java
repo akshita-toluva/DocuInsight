@@ -1,7 +1,10 @@
 package com.docuinsight.docuinsight.service;
 
+import com.docuinsight.docuinsight.model.MultiDocumentReport;
+import com.docuinsight.docuinsight.model.MultiDocumentReportResponse;
 import com.docuinsight.docuinsight.model.Report;
 import com.docuinsight.docuinsight.model.User;
+import com.docuinsight.docuinsight.repository.MultiDocumentReportRepository;
 import com.docuinsight.docuinsight.repository.ReportRepository;
 import com.docuinsight.docuinsight.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -29,6 +33,8 @@ import java.util.List;
 public class ReportExportService {
     public final ReportRepository reportRepository;
     public final UserRepository userRepository;
+    public final MultiDocumentReportRepository multiDocumentReportRepository;
+
 
     //entry_point called by controller
     @Transactional(readOnly = true)
@@ -63,6 +69,142 @@ public class ReportExportService {
                             "'. Use 'pdf' or 'docx'."
             );
         }
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportMultiReport(Long reportId,String format,String email) throws IOException{
+        User user=userRepository.findByEmail(email)
+                .orElseThrow(()->new RuntimeException("User not found: " + email));
+
+        MultiDocumentReport report=multiDocumentReportRepository
+                .findByIdAndUserId(reportId,user.getId())
+                .orElseThrow(()->new RuntimeException(
+                        "MultiDocument report not found. ID: " + reportId));
+        if(report.getStatus()!= MultiDocumentReport.ReportStatus.COMPLETED){
+            throw new IllegalStateException(
+                    "Cannot export report that is not completed. " +
+                            "Current status is: " + report.getStatus());
+        }
+
+        //Build file name labels for the header
+        String fileNames=report.getFiles().stream()
+                .map(f->f.getFileName())
+                .collect(java.util.stream.Collectors.joining(", "));
+
+        if("pdf".equalsIgnoreCase(format))
+        {
+            return generateMultiPdf(report, fileNames);
+        } else if ("docx".equalsIgnoreCase(format)) {
+            return generateMultiDocx(report, fileNames);
+        }else{
+            throw new IllegalArgumentException("Unsupported format: '" + format + "'. Use 'pdf' or 'docx'.");
+        }
+    }
+
+    private byte[] generateMultiPdf(MultiDocumentReport report, String fileNames) throws IOException {
+        ByteArrayOutputStream out=new ByteArrayOutputStream();
+
+        try(PDDocument doc=new PDDocument()){
+            String content=report.getReportContent();
+            List<String> lines=wrapText(content,85);
+
+            float margin     = 50f;
+            float yStart     = PDRectangle.A4.getHeight() - margin;
+            float lineHeight = 14f;
+
+            PDType1Font titleFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+            PDType1Font bodyFont  = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+
+            PDPage page = new PDPage(PDRectangle.A4);
+            doc.addPage(page);
+            PDPageContentStream cs = new PDPageContentStream(doc, page);
+            float y = yStart;
+            boolean headerWritten = false;
+
+            for (String line : lines) {
+                if (y < margin + lineHeight) {
+                    cs.close();
+                    page = new PDPage(PDRectangle.A4);
+                    doc.addPage(page);
+                    cs = new PDPageContentStream(doc, page);
+                    y = yStart;
+                }
+                if(!headerWritten){
+                    cs.beginText();
+                    cs.setFont(titleFont, 16);
+                    cs.newLineAtOffset(margin, y);
+                    cs.showText("Multi-Document Report — DocuInsight");
+                    cs.endText();
+                    y -= lineHeight * 1.5f;
+
+                    cs.beginText();
+                    cs.setFont(bodyFont, 10);
+                    cs.newLineAtOffset(margin, y);
+                    String safeNames = fileNames.replaceAll("[^\\x20-\\x7E]", "");
+                    cs.showText("Files: " + safeNames);
+                    cs.endText();
+                    y -= lineHeight;
+
+                    cs.beginText();
+                    cs.setFont(bodyFont, 10);
+                    cs.newLineAtOffset(margin, y);
+                    cs.showText("Type: " + report.getReportType().name());
+                    cs.endText();
+                    y -= lineHeight * 2;
+                    headerWritten = true;
+                }
+                cs.beginText();
+                cs.setFont(bodyFont, 11);
+                cs.newLineAtOffset(margin, y);
+                String safe = line.replaceAll("[^\\x20-\\x7E]", "");
+                cs.showText(safe);
+                cs.endText();
+                y -= lineHeight;
+            }
+            cs.close();
+            doc.save(out);
+        }
+        return out.toByteArray();
+    }
+
+    private byte[] generateMultiDocx(MultiDocumentReport report, String fileNames) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        try (XWPFDocument docx = new XWPFDocument()) {
+            XWPFParagraph titlePara = docx.createParagraph();
+            titlePara.setAlignment(ParagraphAlignment.CENTER);
+            XWPFRun titleRun = titlePara.createRun();
+            titleRun.setText("Multi-Document Report — DocuInsight");
+            titleRun.setBold(true);
+            titleRun.setFontSize(18);
+            titleRun.setFontFamily("Arial");
+            titleRun.addBreak();
+
+            XWPFParagraph metaPara = docx.createParagraph();
+            metaPara.setAlignment(ParagraphAlignment.CENTER);
+            XWPFRun metaRun = metaPara.createRun();
+            metaRun.setText("Files: " + fileNames + "   |   Type: " +
+                    report.getReportType().name() + "   |   Generated: " +
+                    (report.getCompletedAt() != null ?
+                            report.getCompletedAt().toString() : "N/A"));
+            metaRun.setFontSize(10);
+            metaRun.setColor("555555");
+            metaRun.setFontFamily("Arial");
+
+            docx.createParagraph();
+
+            String[] contentLines = report.getReportContent().split("\n");
+            for (String line : contentLines) {
+                XWPFParagraph para = docx.createParagraph();
+                XWPFRun run = para.createRun();
+                run.setText(line.isEmpty() ? " " : line);
+                run.setFontSize(11);
+                run.setFontFamily("Arial");
+            }
+
+            docx.write(out);
+        }
+        return out.toByteArray();
     }
 
     // PDF generation using Apache PDFBox

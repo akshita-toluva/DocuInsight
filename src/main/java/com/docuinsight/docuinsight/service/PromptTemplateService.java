@@ -1,7 +1,11 @@
 package com.docuinsight.docuinsight.service;
 
+import com.docuinsight.docuinsight.model.MultiDocumentReport;
+import com.docuinsight.docuinsight.model.MultiDocumentReportResponse;
 import com.docuinsight.docuinsight.model.Report;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class PromptTemplateService {
@@ -83,5 +87,42 @@ public class PromptTemplateService {
                "Be thorough and specific, referencing actual content from the document.";
     }
 
+    public String buildMultiDocumentPrompt(MultiDocumentReport.ReportType type, String customPrompt, List<String> fileNames)
+    {
+        int count=fileNames.size();
+        String fileList=String.join(",", fileNames);
+        String intro="You are analysing " + count + " douments together: " + fileList + ".\n\n";
+
+        return switch (type)
+                {
+                    case EXECUTIVE -> intro +
+                            "Provide a unified executive summary synthesising all documents.\n" +
+                            "Structure your response exactly as:\n\n" +
+                            "## OVERALL SUMMARY\n" +
+                            "[Combined key insights from all documents]\n\n" +
+                            "## COMMON THEMES\n" +
+                            "[Topics and findings that appear across multiple documents]\n\n" +
+                            "## KEY DIFFERENCES\n" +
+                            "[Important contrasts and contradictions between documents]\n\n" +
+                            "## COMBINED RECOMMENDATIONS\n" +
+                            "[Actionable conclusions drawing from all documents]";
+
+                    case TECHNICAL -> intro +
+                            "Provide a technical analysis comparing all documents.\n" +
+                            "Structure your response exactly as:\n\n" +
+                            "## TECHNICAL OVERVIEW\n" +
+                            "[What each document covers technically]\n\n" +
+                            "## AGREEMENTS\n" +
+                            "[Where documents align in technical content]\n\n" +
+                            "## CONTRADICTIONS\n" +
+                            "[Where documents conflict or differ technically]\n\n" +
+                            "## GAPS\n" +
+                            "[Information missing or unclear across documents]\n\n" +
+                            "## COMBINED CONCLUSION\n" +
+                            "[Synthesised technical conclusion]";
+
+                    case CUSTOM -> intro + customPrompt;
+                };
+    }
 
 }
