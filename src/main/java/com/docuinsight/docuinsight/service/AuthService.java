@@ -1,0 +1,61 @@
+package com.docuinsight.docuinsight.service;
+
+import com.docuinsight.docuinsight.model.AuthResponse;
+import com.docuinsight.docuinsight.model.RegisterRequest;
+import com.docuinsight.docuinsight.model.User;
+import com.docuinsight.docuinsight.repository.UserRepository;
+import com.docuinsight.docuinsight.security.JwtService;
+import com.docuinsight.docuinsight.model.LoginRequest;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+@Service
+@RequiredArgsConstructor
+public class AuthService {
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+
+    public AuthResponse register(RegisterRequest request)
+    {
+        //step 1 check if email already exists
+        if(userRepository.existsByEmail(request.getEmail()))
+        {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Email already registered");
+        }
+        //step 2 Hash the password
+        String hashedPassword =passwordEncoder.encode(request.getPassword());
+        //step 3 build user object
+        User user= User.builder()
+                .name(request.getName())
+                .email(request.getEmail())
+                .password(hashedPassword)
+                .build();
+        //step 4 Save to DB
+        userRepository.save(user);
+        //Step 5 return success response
+        return new AuthResponse("Registration Successful",null);
+    }
+
+    public AuthResponse login(LoginRequest request)
+    {
+        User user=userRepository.findByEmail(request.getEmail())
+                .orElseThrow(()->
+                        new ResponseStatusException(
+                                HttpStatus.UNAUTHORIZED, "Invalid email or password"));
+        if(!passwordEncoder.matches(
+                request.getPassword(),user.getPassword()))
+        {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "Invalid email or password");
+
+        }
+
+        String token = jwtService.generateToken(user.getEmail());
+        return new AuthResponse("Login Successful",token);
+    }
+}
