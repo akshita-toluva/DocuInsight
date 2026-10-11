@@ -11,7 +11,7 @@ import lombok.Data;
 public class ExtractionResponse {
     private Long fileId;            // Which file was extracted — frontend uses this for next API call
     private String fileName;        // Show user "extracted from: report.pdf"
-    private String extractedText;   // The actual text content — will be sent to Gemini AI later
+    private String extractedText;   // The actual text content — will be sent to  AI later
     private int characterCount;     // Useful stat — also lets you validate extraction worked
     private String message;         // "Extraction successful" or "Already extracted, returning cached"
 }

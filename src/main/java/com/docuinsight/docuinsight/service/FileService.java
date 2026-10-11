@@ -45,6 +45,12 @@ public class FileService {
             throw new IllegalArgumentException("Unsupported file type: " + contentType + ". Only PDF, DOCX ,TXT, CSV files are allowed.");
         }
 
+        byte[] header = file.getInputStream().readNBytes(12);
+        if (!matchesSignature(contentType, header))
+        {
+            throw new IllegalArgumentException("File content does not match declared type: " + contentType);
+        }
+
         //step 2 Find User
         User user=userRepository.findByEmail(email)
                 .orElseThrow(() ->
@@ -52,9 +58,10 @@ public class FileService {
 
         //step 3 Create unique fileName
         String originalFileName=file.getOriginalFilename();
+        String safeName = Paths.get(originalFileName).getFileName().toString();
         String uniqueFileName=user.getId() + "_"
                 + System.currentTimeMillis()
-                + "_" + originalFileName;
+                + "_" + safeName;
 
         //step 4 Create uploads folder if it does not exists
         Path uploadPath= Paths.get(uploadDir);
@@ -64,7 +71,11 @@ public class FileService {
         //Files.createDirectories(uploadPath);
 
         //step 5 save file to disk
-        Path filePath=uploadPath.resolve(uniqueFileName);
+        Path filePath=uploadPath.resolve(uniqueFileName).normalize();
+        if(!filePath.startsWith(uploadPath.normalize()))
+        {
+            throw new IllegalArgumentException("Invalid file name");
+        }
         Files.copy(file.getInputStream(),filePath, StandardCopyOption.REPLACE_EXISTING);
 
         //step 6 save file metadata to database
@@ -94,6 +105,36 @@ public class FileService {
                 .orElseThrow(()->
                         new RuntimeException("User not found"));
         return fileRepository.findByUserId(user.getId());
+    }
+
+    private boolean matchesSignature(String contentType, byte[] header) {
+        switch (contentType) {
+            case "application/pdf":
+                return header.length >= 4
+                        && (header[0] & 0xFF) == 0x25 && (header[1] & 0xFF) == 0x50
+                        && (header[2] & 0xFF) == 0x44 && (header[3] & 0xFF) == 0x46; // %PDF
+            case "image/png":
+                return header.length >= 8
+                        && (header[0] & 0xFF) == 0x89 && (header[1] & 0xFF) == 0x50
+                        && (header[2] & 0xFF) == 0x4E && (header[3] & 0xFF) == 0x47;
+            case "image/jpeg":
+                return header.length >= 3
+                        && (header[0] & 0xFF) == 0xFF && (header[1] & 0xFF) == 0xD8
+                        && (header[2] & 0xFF) == 0xFF;
+            case "image/webp":
+                return header.length >= 12
+                        && header[0]=='R' && header[1]=='I' && header[2]=='F' && header[3]=='F'
+                        && header[8]=='W' && header[9]=='E' && header[10]=='B' && header[11]=='P';
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                return header.length >= 4
+                        && (header[0] & 0xFF) == 0x50 && (header[1] & 0xFF) == 0x4B
+                        && (header[2] & 0xFF) == 0x03 && (header[3] & 0xFF) == 0x04; // ZIP/DOCX
+            case "text/csv":
+            case "text/plain":
+                return true; // no reliable magic bytes for plain text
+            default:
+                return false;
+        }
     }
     
 }

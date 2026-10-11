@@ -25,8 +25,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
-
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -134,13 +133,14 @@ public class ReportExportService {
                     cs.setFont(titleFont, 16);
                     cs.newLineAtOffset(margin, y);
                     cs.showText("Multi-Document Report — DocuInsight");
+                    cs.showText(sanitizeForPdf("Multi-Document Report - DocuInsight",titleFont));
                     cs.endText();
                     y -= lineHeight * 1.5f;
 
                     cs.beginText();
                     cs.setFont(bodyFont, 10);
                     cs.newLineAtOffset(margin, y);
-                    String safeNames = fileNames.replaceAll("[^\\x20-\\x7E]", "");
+                    String safeNames = sanitizeForPdf(fileNames,bodyFont);
                     cs.showText("Files: " + safeNames);
                     cs.endText();
                     y -= lineHeight;
@@ -156,7 +156,7 @@ public class ReportExportService {
                 cs.beginText();
                 cs.setFont(bodyFont, 11);
                 cs.newLineAtOffset(margin, y);
-                String safe = line.replaceAll("[^\\x20-\\x7E]", "");
+                String safe = sanitizeForPdf(line,bodyFont);
                 cs.showText(safe);
                 cs.endText();
                 y -= lineHeight;
@@ -263,7 +263,7 @@ public class ReportExportService {
                 cs.setFont(bodyFont, 11);
                 cs.newLineAtOffset(margin, y);
                 // Remove non-ASCII characters to avoid PDFBox errors
-                String safe = line.replaceAll("[^\\x20-\\x7E]", "");
+                String safe = sanitizeForPdf(line,bodyFont);
                 cs.showText(safe);
                 cs.endText();
                 y -= lineHeight;
@@ -347,5 +347,33 @@ public class ReportExportService {
        return  result;
     }
 
+    private static final Map<Character, String> PDF_CHAR_FALLBACK = Map.ofEntries(
+            Map.entry('\u2010', "-"),   // hyphen
+            Map.entry('\u2011', "-"),   // non-breaking hyphen
+            Map.entry('\u2012', "-"),   // figure dash
+            Map.entry('\u2013', "-"),   // en dash
+            Map.entry('\u2014', "-"),   // em dash
+            Map.entry('\u00A0', " "),   // non-breaking space
+            Map.entry('\u2018', "'"),   // left single quote
+            Map.entry('\u2019', "'"),   // right single quote
+            Map.entry('\u201C', "\""),  // left double quote
+            Map.entry('\u201D', "\""),  // right double quote
+            Map.entry('\u2026', "...")  // ellipsis
+    );
+
+    private String sanitizeForPdf(String text, PDType1Font font) {
+        if (text == null) return "";
+        StringBuilder sb = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            try {
+                font.encode(String.valueOf(c));
+                sb.append(c);
+            } catch (Exception e) {
+                sb.append(PDF_CHAR_FALLBACK.getOrDefault(c, "?"));
+            }
+        }
+        return sb.toString();
+    }
 
 }

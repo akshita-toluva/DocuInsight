@@ -96,7 +96,7 @@ public class ReportService {
         report.setCustomPrompt(request.getCustomPrompt());
         report = reportRepository.save(report);
 
-        //Call Gemini
+        //Call llm
         try {
             String reportContent = llmService.generateReport(extractedText, prompt);
             report.setReportContent(reportContent);
@@ -106,7 +106,7 @@ public class ReportService {
             log.info("Report generated successfully. Report ID={}", report.getId());
             return ReportResponse.from(report, false);
         } catch (Exception e) {
-            log.error("Gemini generation failed for report ID={}", report.getId(), e);
+            log.error("LLM generation failed for report ID={}", report.getId(), e);
             report.setStatus(Report.ReportStatus.FAILED);
             report.setErrorMessage(e.getMessage() != null ?
                     e.getMessage().substring(0, Math.min(e.getMessage().length(), 500)) : "Unknown error");
