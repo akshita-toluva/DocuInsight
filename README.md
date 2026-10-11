@@ -11,7 +11,7 @@ DocuInsight is an AI-powered document intelligence platform. Upload a PDF, CSV, 
 | Security | Spring Security 7 + JWT |
 | Database | PostgreSQL 16 |
 | ORM | Hibernate 7.2.12 |
-| AI Provider | Groq (LLaMA 3.3 70B) |
+| AI Provider |Groq(openai/gpt-oss-120b; vision: qwen/qwen3.8-27b)|
 | PDF Processing | Apache PDFBox 3.0.1 |
 | CSV Processing | OpenCSV 5.9 |
 | DOCX Processing | Apache POI 5.3.0 |
@@ -22,7 +22,7 @@ DocuInsight is an AI-powered document intelligence platform. Upload a PDF, CSV, 
 - **Authentication** — register and log in with JWT-based sessions, passwords hashed with BCrypt
 - **File upload** — supports PDF, CSV, DOCX, TXT, and images (PNG/JPEG/WEBP), scoped to each user
 - **Text extraction** — pulls text from PDFs, CSVs, and DOCX files; falls back to a vision model for scanned or image-heavy PDFs and for image uploads; caches results so re-extraction is instant
-- **AI report generation** — Executive Summary, Technical Analysis, or a Custom prompt, generated via Groq's LLaMA 3.3 70B, with results cached per file and report type
+- **AI report generation** — Executive Summary, Technical Analysis, or a Custom prompt, generated via Groq's openai/gpt-oss-120b, with results cached per file and report type
 - **Multi-document reports** — generate one combined report synthesizing several uploaded files at once
 - **Ask a question** — Q&A against the source document behind a completed report
 - **Export** — download any report as a PDF or Word document

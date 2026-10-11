@@ -57,7 +57,7 @@ public class ImageAnalysisService {
         ObjectNode root=objectMapper.createObjectNode();
         root.put("model",visionModel);
         root.put("temperature",0.2);
-        root.put("max_tokens",2048);
+        root.put("max_tokens",4096);
 
         ArrayNode messages=root.putArray("messages");
 
@@ -82,8 +82,9 @@ public class ImageAnalysisService {
         //Element 2 : the text question
         ObjectNode textEl=contentArray.addObject();
         textEl.put("type","text");
-        textEl.put("text","You are an expert image analyst. Analyse this image in detail. Describe all text, charts, diagrams, people, objects, or data visible.");
-
+        textEl.put("text","Extract all text in this image exactly as written. " +
+                "Then briefly describe any charts, diagrams, tables or objects. Report only what is visible." +
+                " Do not evaluate, correct, or explain your reasoning");
         return objectMapper.writeValueAsString(root);
     }
 
