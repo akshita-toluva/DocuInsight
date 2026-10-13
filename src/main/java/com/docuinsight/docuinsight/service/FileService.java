@@ -1,5 +1,6 @@
 package com.docuinsight.docuinsight.service;
 
+import com.docuinsight.docuinsight.model.FileSummaryResponse;
 import com.docuinsight.docuinsight.model.FileUploadResponse;
 import com.docuinsight.docuinsight.model.UploadedFile;
 import com.docuinsight.docuinsight.model.User;
@@ -10,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -99,12 +99,15 @@ public class FileService {
         );
     }
 
-    public List<UploadedFile> getUserFiles(String email)
+    public List<FileSummaryResponse> getUserFiles(String email)
     {
         User user=userRepository.findByEmail(email)
                 .orElseThrow(()->
                         new RuntimeException("User not found"));
-        return fileRepository.findByUserId(user.getId());
+        return fileRepository.findByUserIdOrderByUploadedAtDesc(user.getId())
+                .stream()
+                .map(FileSummaryResponse::from)
+                .toList();
     }
 
     private boolean matchesSignature(String contentType, byte[] header) {

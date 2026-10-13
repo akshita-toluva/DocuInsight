@@ -1,8 +1,8 @@
 package com.docuinsight.docuinsight.controller;
 
 import com.docuinsight.docuinsight.model.ExtractionResponse;
+import com.docuinsight.docuinsight.model.FileSummaryResponse;
 import com.docuinsight.docuinsight.model.FileUploadResponse;
-import com.docuinsight.docuinsight.model.UploadedFile;
 import com.docuinsight.docuinsight.service.FileService;
 import com.docuinsight.docuinsight.service.TextExtractionService;
 import java.io.IOException;
@@ -30,10 +30,9 @@ public class FileController {
     }
 
     @GetMapping("/my-files")
-    public ResponseEntity<List<UploadedFile>> getMyFiles(
+    public ResponseEntity<List<FileSummaryResponse>> getMyFiles(
             @AuthenticationPrincipal String email) {
-        List<UploadedFile> files = fileService.getUserFiles(email);
-        return ResponseEntity.ok(files);
+        return ResponseEntity.ok(fileService.getUserFiles(email));
     }
 
     @PostMapping("/{fileId}/extract")

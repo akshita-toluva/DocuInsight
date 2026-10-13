@@ -52,7 +52,7 @@
 
 .auth-switch { margin-top: 16px; text-align: center; font-size: 14px; color: var(--muted); }
 
-/* ---------- Navbar + page layout (Step 7) ---------- */
+/* ---------- Navbar + page layout--------- */
 .navbar {
   display: flex;
   justify-content: space-between;
@@ -74,3 +74,57 @@
 .btn-link:hover { background: rgba(255, 255, 255, 0.12); }
 
 .page { max-width: 1000px; margin: 0 auto; padding: 24px; }
+
+/* ---------- Files page ---------- */
+.muted { color: var(--muted); }
+
+.file-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.file-table th,
+.file-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.file-table th { background: #eef2f7; font-weight: 600; }
+.file-table tr:last-child td { border-bottom: none; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.badge-ok { background: var(--success-bg); color: var(--success-text); }
+.badge-pending { background: #f1f5f9; color: var(--muted); }
+
+/* ---------- Upload form ---------- */
+.upload-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.upload-card .alert { width: 100%; margin: 0; }
+.btn-inline { width: auto; padding: 9px 18px; }
+.hint { width: 100%; margin: 0; font-size: 13px; color: var(--muted); }
+
+.btn-small {
+  padding: 4px 10px;
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-small:hover:not(:disabled) { background: var(--primary); color: #fff; }
+.btn-small:disabled { opacity: 0.5; cursor: not-allowed; }
