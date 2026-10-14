@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { getMyFiles, extractText } from '../api/files.js'
 import { getErrorMessage } from '../api/client.js'
+import { Link } from 'react-router'
 import UploadForm from '../components/UploadForm.jsx'
+
 
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`
@@ -73,6 +75,7 @@ export default function FilesPage()
                     <th>Size</th>
                     <th>Uploaded</th>
                     <th>Text</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -94,6 +97,11 @@ export default function FilesPage()
                             {extractingId === file.id ? 'Extracting…' : 'Extract text'}
                           </button>
                         )}
+                      </td>
+                      <td>
+                        <Link to={`/files/${file.id}/report`} state={{ fileName: file.fileName }} className="btn-small">
+                          Report
+                        </Link>
                       </td>
                     </tr>
                   ))}
