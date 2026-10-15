@@ -1,4 +1,4 @@
-import { Navigate, Outlet, Link, useNavigate } from 'react-router'
+import { Navigate, Outlet, Link, NavLink, useNavigate } from 'react-router'
 import { useAuth } from '../context/AuthContext.jsx'
 
 export default function ProtectedLayout() {
@@ -19,7 +19,11 @@ export default function ProtectedLayout() {
   return (
     <div>
       <header className="navbar">
-        <Link to="/files" className="brand">DocuInsight</Link>
+        <nav className="nav-left">
+          <Link to="/files" className="brand">DocuInsight</Link>
+          <NavLink to="/files" className="nav-link">My Files</NavLink>
+          <NavLink to="/reports" end className="nav-link">My Reports</NavLink>
+        </nav>
         <button className="btn-link" onClick={handleLogout}>Log out</button>
       </header>
       <main className="page">

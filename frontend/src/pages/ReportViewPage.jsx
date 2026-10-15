@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { getReport } from '../api/reports.js'
+import { getReport, downloadReport } from '../api/reports.js'
 import { getErrorMessage } from '../api/client.js'
 
 const TYPE_LABELS = {
@@ -16,6 +16,8 @@ export default function ReportViewPage() {
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [downloading, setDownloading] = useState(null)
+  const [downloadError, setDownloadError] = useState('')
 
   // Load the report; reload when the URL's reportId changes
   useEffect(() => {
@@ -33,10 +35,22 @@ export default function ReportViewPage() {
     return <p className="muted">Loading report…</p>
   }
 
+  async function handleDownload(format) {
+    setDownloading(format)
+    setDownloadError('')
+    try {
+      await downloadReport(report.reportId, format)
+    } catch (err) {
+      setDownloadError(getErrorMessage(err))
+    } finally {
+      setDownloading(null)
+    }
+  }
+
   if (error) {
     return (
       <div className="narrow">
-        <Link to="/files" className="back-link">← Back to files</Link>
+        <Link to="/reports" className="back-link">← Back to reports</Link>
         <div className="alert alert-error">{error}</div>
       </div>
     )
@@ -46,7 +60,7 @@ export default function ReportViewPage() {
 
   return (
     <article className="report">
-      <Link to="/files" className="back-link">← Back to files</Link>
+      <Link to="/reports" className="back-link">← Back to reports</Link>
 
       <header className="report-header">
         <span className="report-type">{TYPE_LABELS[report.reportType] ?? report.reportType}</span>
@@ -69,15 +83,34 @@ export default function ReportViewPage() {
         </div>
       )}
 
-      <footer className="report-actions">
-        <Link
-          to={`/files/${report.fileId}/report`}
-          state={{ fileName: report.fileName }}
-          className="btn-small"
-        >
-          Generate another report for this file
-        </Link>
-      </footer>
+       <footer className="report-actions">
+           {completed && (
+              <>
+                <button
+                    className="btn-small"
+                    onClick={() => handleDownload('pdf')}
+                    disabled={downloading !== null}
+                >
+                    {downloading === 'pdf' ? 'Preparing…' : 'Download PDF'}
+                </button>
+                <button
+                    className="btn-small"
+                    onClick={() => handleDownload('docx')}
+                    disabled={downloading !== null}
+                >
+                {downloading === 'docx' ? 'Preparing…' : 'Download Word'}
+                </button>
+              </>
+           )}
+           <Link
+             to={`/files/${report.fileId}/report`}
+             state={{ fileName: report.fileName }}
+             className="btn-small"
+            >
+            Generate another report for this file
+           </Link>
+       </footer>
+       {downloadError && <div className="alert alert-error">{downloadError}</div>}
     </article>
   )
 }

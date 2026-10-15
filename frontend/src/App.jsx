@@ -5,6 +5,7 @@ import FilesPage from './pages/FilesPage.jsx'
 import ProtectedLayout from './components/ProtectedLayout.jsx'
 import GenerateReportPage from './pages/GenerateReportPage.jsx'
 import ReportViewPage from './pages/ReportViewPage.jsx'
+import ReportsPage from './pages/ReportsPage.jsx'
 import './App.css'
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
          <Route path="/files" element={<FilesPage />} />
          <Route path="/files/:fileId/report" element={<GenerateReportPage />} />
          <Route path="/reports/:reportId" element={<ReportViewPage />} />
+         <Route path="/reports" element={<ReportsPage />} />
        </Route>
        <Route path="*" element={<h1>404 - Page not found </h1>} />
      </Routes>
