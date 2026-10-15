@@ -1,7 +1,6 @@
 package com.docuinsight.docuinsight.service;
 
 import com.docuinsight.docuinsight.model.MultiDocumentReport;
-import com.docuinsight.docuinsight.model.MultiDocumentReportResponse;
 import com.docuinsight.docuinsight.model.Report;
 import org.springframework.stereotype.Service;
 
@@ -9,6 +8,17 @@ import java.util.List;
 
 @Service
 public class PromptTemplateService {
+    // Shared by every prompt: keeps the Markdown predictable for the viewer and the PDF/Word export
+    private static final String FORMAT_RULES = """
+
+            Formatting rules:
+            - Output GitHub-flavoured Markdown only.
+            - Do not add a document title, a preamble, or horizontal rules (---); start directly with the first ## section.
+            - Use ## for section headings and ### only for sub-sections.
+            - Use "-" for bullet points and "1." for numbered steps.
+            - Use Markdown tables only for genuinely tabular data.
+            """;
+
     public String buildPrompt(Report.ReportType reportType,String customPrompt,String fileName){
         return switch (reportType){
             case EXECUTIVE -> buildExecutivePrompt(fileName);
@@ -22,7 +32,6 @@ public class PromptTemplateService {
                "professional Executive Summary Report.\n\n" +
                "File: " + fileName + "\n\n" +
                "Structure your response as follows:\n\n" +
-               "# Executive Summary\n\n" +
                "## Overview\n" +
                "[2-3 sentence high-level summary]\n\n" +
                "## Key Findings\n" +
@@ -33,7 +42,7 @@ public class PromptTemplateService {
                "[2-4 actionable recommendations]\n\n" +
                "## Conclusion\n" +
                "[Brief closing statement]\n\n" +
-               "Keep the tone professional and concise. Focus on business value and and decision-making.";
+                "Keep the tone professional and concise. Focus on business value and decision-making." + FORMAT_RULES;
     }
 
     private String buildTechnicalPrompt(String fileName)
@@ -44,10 +53,7 @@ public class PromptTemplateService {
                             
                 File: %s
                             
-                Structure your response EXACTLY as follows:
-                            
-                # Technical Analysis Report
-                            
+                Structure your response EXACTLY as follows:         
                 ## Document Overview
                 [What type of document is this? What system/technology/process does it describe?]
                             
@@ -70,7 +76,7 @@ public class PromptTemplateService {
                 [Any code snippets, config values, or technical specifications worth highlighting]
                            
                 Use precise technical language. Include specific values, names, and details from the document.
-                """.formatted(fileName);
+                """.formatted(fileName)+ FORMAT_RULES;
 
     }
 
@@ -84,16 +90,16 @@ public class PromptTemplateService {
                "according to the following instructions.\n\n" +
                "File: " + fileName + "\n\n" +
                "Instructions:\n" + customPrompt.trim() + "\n\n" +
-               "Be thorough and specific, referencing actual content from the document.";
+                "Be thorough and specific, referencing actual content from the document." + FORMAT_RULES;
     }
 
     public String buildMultiDocumentPrompt(MultiDocumentReport.ReportType type, String customPrompt, List<String> fileNames)
     {
         int count=fileNames.size();
         String fileList=String.join(",", fileNames);
-        String intro="You are analysing " + count + " douments together: " + fileList + ".\n\n";
+        String intro="You are analysing " + count + " documents together: " + fileList + ".\n\n";
 
-        return switch (type)
+        String body = switch (type)
                 {
                     case EXECUTIVE -> intro +
                             "Provide a unified executive summary synthesising all documents.\n" +
@@ -123,6 +129,7 @@ public class PromptTemplateService {
 
                     case CUSTOM -> intro + customPrompt;
                 };
+        return body + FORMAT_RULES;
     }
 
 }

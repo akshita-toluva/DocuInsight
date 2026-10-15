@@ -78,7 +78,7 @@
 		<dependency>
 			<groupId>org.apache.pdfbox</groupId>
 			<artifactId>pdfbox</artifactId>
-			<version>3.0.1</version>
+			<version>3.0.7</version>
 		</dependency>
 		<dependency>
 			<groupId>com.opencsv</groupId>
@@ -102,13 +102,29 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-		<!-- Apache POI for DOCX export (Day 8) -->
+		<!-- Apache POI for DOCX export  -->
 		<dependency>
 			<groupId>org.apache.poi</groupId>
 			<artifactId>poi-ooxml</artifactId>
 			<version>5.3.0</version>
 		</dependency>
-
+		<!--  Markdown -> HTML (report export) -->
+		<dependency>
+			<groupId>org.commonmark</groupId>
+			<artifactId>commonmark</artifactId>
+			<version>0.28.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.commonmark</groupId>
+			<artifactId>commonmark-ext-gfm-tables</artifactId>
+			<version>0.28.0</version>
+		</dependency>
+		<!-- HTML + CSS -> PDF (uses PDFBox 3) -->
+		<dependency>
+			<groupId>io.github.openhtmltopdf</groupId>
+			<artifactId>openhtmltopdf-pdfbox</artifactId>
+			<version>1.1.97</version>
+		</dependency>
 	</dependencies>
 
 	<build>

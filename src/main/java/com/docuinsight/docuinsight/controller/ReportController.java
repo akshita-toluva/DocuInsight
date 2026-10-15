@@ -14,7 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-
+import org.springframework.http.ContentDisposition;
 
 import java.util.List;
 import java.util.Map;
@@ -180,12 +180,12 @@ public class ReportController {
                 headers.setContentType(MediaType.parseMediaType(
                         "application/vnd.openxmlformats-officedocument" +
                                 ".wordprocessingml.document"));
-                headers.setContentDispositionFormData(
-                        "attachment", "report-" + reportId + ".docx");
+                headers.setContentDisposition(ContentDisposition.attachment()
+                        .filename("report-" + reportId + ".docx").build());
             }else {
                 headers.setContentType(MediaType.APPLICATION_PDF);
-                headers.setContentDispositionFormData(
-                        "attachment","report-" + reportId + ".pdf");
+                headers.setContentDisposition(ContentDisposition.attachment()
+                        .filename("report-" + reportId + ".pdf").build());
             }
             headers.setContentLength(fileBytes.length);
 
