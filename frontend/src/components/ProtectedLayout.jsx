@@ -23,6 +23,7 @@ export default function ProtectedLayout() {
           <Link to="/files" className="brand">DocuInsight</Link>
           <NavLink to="/files" className="nav-link">My Files</NavLink>
           <NavLink to="/reports" end className="nav-link">My Reports</NavLink>
+          <NavLink to="/compare" className="nav-link">Compare</NavLink>
         </nav>
         <button className="btn-link" onClick={handleLogout}>Log out</button>
       </header>

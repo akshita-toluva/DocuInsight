@@ -4,6 +4,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { getReport, downloadReport } from '../api/reports.js'
 import { getErrorMessage } from '../api/client.js'
+import AskPanel from '../components/AskPanel.jsx'
 
 const TYPE_LABELS = {
   EXECUTIVE: 'Executive Summary',
@@ -111,6 +112,7 @@ export default function ReportViewPage() {
            </Link>
        </footer>
        {downloadError && <div className="alert alert-error">{downloadError}</div>}
+       {completed && <AskPanel key={report.reportId} reportId={report.reportId} />}
     </article>
   )
 }

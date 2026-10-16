@@ -6,6 +6,8 @@ import ProtectedLayout from './components/ProtectedLayout.jsx'
 import GenerateReportPage from './pages/GenerateReportPage.jsx'
 import ReportViewPage from './pages/ReportViewPage.jsx'
 import ReportsPage from './pages/ReportsPage.jsx'
+import CompareFilesPage from './pages/CompareFilesPage.jsx'
+import MultiReportViewPage from './pages/MultiReportViewPage.jsx'
 import './App.css'
 
 function App() {
@@ -20,6 +22,8 @@ function App() {
          <Route path="/files/:fileId/report" element={<GenerateReportPage />} />
          <Route path="/reports/:reportId" element={<ReportViewPage />} />
          <Route path="/reports" element={<ReportsPage />} />
+         <Route path="/compare" element={<CompareFilesPage />} />
+         <Route path="/multi-reports/:id" element={<MultiReportViewPage />} />
        </Route>
        <Route path="*" element={<h1>404 - Page not found </h1>} />
      </Routes>

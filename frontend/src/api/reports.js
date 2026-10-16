@@ -1,4 +1,5 @@
 import api from './client.js'
+import { downloadFile } from './download.js'
 
 // POST /api/reports/generate/{fileId}
 // body: { reportType: 'EXECUTIVE' | 'TECHNICAL' | 'CUSTOM', customPrompt?, forceRegenerate }
@@ -31,42 +32,14 @@ export async function deleteReport(reportId) {
   return data
 }
 
-// GET /api/reports/{reportId}/export?format=pdf|docx -> file bytes
-export async function downloadReport(reportId, format) {
-  try {
-    const response = await api.get(`/api/reports/${reportId}/export`, {
-      params: { format },
-      responseType: 'blob', // binary file, not JSON
-    })
-    const fileName =
-      fileNameFrom(response.headers['content-disposition']) ?? `report-${reportId}.${format}`
-    saveBlob(response.data, fileName)
-  } catch (err) {
-    // With responseType 'blob', error bodies are Blobs too -> turn them back into { error }
-    if (err.response?.data instanceof Blob) {
-      const text = await err.response.data.text()
-      try {
-        err.response.data = JSON.parse(text)
-      } catch {
-        err.response.data = { error: text }
-      }
-    }
-    throw err
-  }
+// GET /api/reports/{reportId}/export?format=pdf|docx -> file download
+export function downloadReport(reportId, format) {
+  return downloadFile(`/api/reports/${reportId}/export`, { format }, `report-${reportId}.${format}`)
 }
 
-function fileNameFrom(header) {
-  const match = header?.match(/filename="?([^";]+)"?/)
-  return match ? match[1] : null
-}
-
-function saveBlob(blob, fileName) {
-  const url = URL.createObjectURL(blob)        // temporary in-memory link to the file
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName                     // "save as" instead of opening
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000) // free the memory
+// POST /api/reports/{reportId}/ask  body: { question }
+// -> { reportId, fileName, question, answer, answeredAt }
+export async function askQuestion(reportId, question) {
+  const { data } = await api.post(`/api/reports/${reportId}/ask`, { question })
+  return data
 }

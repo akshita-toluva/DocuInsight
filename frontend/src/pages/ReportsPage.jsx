@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { getMyReports, deleteReport } from '../api/reports.js'
 import { getErrorMessage } from '../api/client.js'
+import ComparisonsList from '../components/ComparisonsList.jsx'
 
 const TYPE_LABELS = {
   EXECUTIVE: 'Executive Summary',
@@ -124,6 +125,9 @@ export default function ReportsPage() {
           </tbody>
         </table>
       )}
+
+      <ComparisonsList />
+
     </div>
   )
 }
