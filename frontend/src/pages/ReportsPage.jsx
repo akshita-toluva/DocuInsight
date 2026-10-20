@@ -3,19 +3,7 @@ import { Link } from 'react-router'
 import { getMyReports, deleteReport } from '../api/reports.js'
 import { getErrorMessage } from '../api/client.js'
 import ComparisonsList from '../components/ComparisonsList.jsx'
-
-const TYPE_LABELS = {
-  EXECUTIVE: 'Executive Summary',
-  TECHNICAL: 'Technical Analysis',
-  CUSTOM: 'Custom',
-}
-
-const STATUS_CLASS = {
-  COMPLETED: 'badge-ok',
-  FAILED: 'badge-error',
-  PENDING: 'badge-pending',
-  PROCESSING: 'badge-pending',
-}
+import { typeLabel, statusClass } from '../constants.js'
 
 export default function ReportsPage() {
   const [reports, setReports] = useState([])
@@ -82,9 +70,9 @@ export default function ReportsPage() {
             {reports.map((report) => (
               <tr key={report.reportId}>
                 <td>{report.fileName}</td>
-                <td>{TYPE_LABELS[report.reportType] ?? report.reportType}</td>
+                <td>{typeLabel(report.reportType)}</td>
                 <td>
-                  <span className={`badge ${STATUS_CLASS[report.status] ?? 'badge-pending'}`}>
+                  <span className={`badge ${statusClass(report.status)}`}>
                     {report.status.toLowerCase()}
                   </span>
                 </td>

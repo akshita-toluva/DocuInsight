@@ -57,7 +57,7 @@ public class UserService {
         if(!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword()))
         {
             throw new ResponseStatusException(
-                HttpStatus.UNAUTHORIZED, "Current password is incorrect");
+                HttpStatus.BAD_REQUEST, "Current password is incorrect");
         }
 
         //Case-2 New password same as old password

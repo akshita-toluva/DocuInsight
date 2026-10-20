@@ -24,6 +24,7 @@ export default function ProtectedLayout() {
           <NavLink to="/files" className="nav-link">My Files</NavLink>
           <NavLink to="/reports" end className="nav-link">My Reports</NavLink>
           <NavLink to="/compare" className="nav-link">Compare</NavLink>
+          <NavLink to="/profile" className="nav-link">Profile</NavLink>
         </nav>
         <button className="btn-link" onClick={handleLogout}>Log out</button>
       </header>

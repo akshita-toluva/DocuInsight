@@ -251,3 +251,17 @@ a.btn-small { display: inline-block; text-decoration: none; }
 
 .comparisons { margin-top: 40px; }
 .comparisons h2 { font-size: 22px; margin: 0 0 12px; }
+
+/* ---------- Profile ---------- */
+.profile-summary dl { display: grid; grid-template-columns: 140px 1fr; gap: 8px 16px; margin: 0; }
+.profile-summary dt { color: var(--muted); font-size: 14px; }
+.profile-summary dd { margin: 0; font-weight: 600; }
+.profile-form { margin-top: 20px; }
+.profile-form h2 { margin: 0 0 14px; font-size: 18px; color: var(--primary); }
+.profile-form .alert { margin-top: 12px; }
+
+/* ---------- polish ---------- */
+.row-actions { min-width: 210px; }               /* room for View + Confirm + Cancel: no column jump */
+.not-found { max-width: 420px; margin: 80px auto; text-align: center; }
+.not-found h1 { font-size: 64px; margin: 0; color: var(--primary); }
+a.btn { display: inline-block; text-decoration: none; }

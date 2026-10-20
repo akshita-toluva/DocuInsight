@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.exc.InvalidFormatException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -94,6 +95,13 @@ public class GlobalExceptionHandler {
             IllegalArgumentException ex) {
         return ResponseEntity.badRequest()
                 .body(Map.of("error", ex.getMessage()));
+    }
+
+    // Unknown URL  -> 404, not a fake 500
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, String>> handleNoResource(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "Endpoint not found."));
     }
 
     // Catch-all — handles anything not caught above

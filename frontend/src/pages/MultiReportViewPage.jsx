@@ -4,12 +4,8 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { getMultiReport, downloadMultiReport } from '../api/multiReports.js'
 import { getErrorMessage } from '../api/client.js'
+import { typeLabel } from '../constants.js'
 
-const TYPE_LABELS = {
-  EXECUTIVE: 'Executive Summary',
-  TECHNICAL: 'Technical Analysis',
-  CUSTOM: 'Custom Report',
-}
 
 export default function MultiReportViewPage() {
   const { id } = useParams()
@@ -63,7 +59,7 @@ export default function MultiReportViewPage() {
 
       <header className="report-header">
         <span className="report-type">
-          Comparison · {TYPE_LABELS[report.reportType] ?? report.reportType}
+          Comparison · {typeLabel(report.reportType)}
         </span>
         <h1>Comparison of {report.fileNames.length} documents</h1>
         <ul className="file-chips">

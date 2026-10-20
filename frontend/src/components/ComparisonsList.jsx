@@ -2,19 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { getMyMultiReports } from '../api/multiReports.js'
 import { getErrorMessage } from '../api/client.js'
-
-const TYPE_LABELS = {
-  EXECUTIVE: 'Executive Summary',
-  TECHNICAL: 'Technical Analysis',
-  CUSTOM: 'Custom',
-}
-
-const STATUS_CLASS = {
-  COMPLETED: 'badge-ok',
-  FAILED: 'badge-error',
-  PENDING: 'badge-pending',
-  PROCESSING: 'badge-pending',
-}
+import { typeLabel, statusClass } from '../constants.js'
 
 export default function ComparisonsList() {
   const [items, setItems] = useState([])
@@ -56,9 +44,9 @@ export default function ComparisonsList() {
             {items.map((item) => (
               <tr key={item.id}>
                 <td>{item.fileNames.join(', ')}</td>
-                <td>{TYPE_LABELS[item.reportType] ?? item.reportType}</td>
+                <td>{typeLabel(item.reportType)}</td>
                 <td>
-                  <span className={`badge ${STATUS_CLASS[item.status] ?? 'badge-pending'}`}>
+                  <span className={`badge ${statusClass(item.status)}`}>
                     {item.status.toLowerCase()}
                   </span>
                 </td>

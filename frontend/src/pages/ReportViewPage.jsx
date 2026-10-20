@@ -5,12 +5,7 @@ import remarkGfm from 'remark-gfm'
 import { getReport, downloadReport } from '../api/reports.js'
 import { getErrorMessage } from '../api/client.js'
 import AskPanel from '../components/AskPanel.jsx'
-
-const TYPE_LABELS = {
-  EXECUTIVE: 'Executive Summary',
-  TECHNICAL: 'Technical Analysis',
-  CUSTOM: 'Custom Report',
-}
+import { typeLabel } from '../constants.js'
 
 export default function ReportViewPage() {
   const { reportId } = useParams()
@@ -64,7 +59,7 @@ export default function ReportViewPage() {
       <Link to="/reports" className="back-link">← Back to reports</Link>
 
       <header className="report-header">
-        <span className="report-type">{TYPE_LABELS[report.reportType] ?? report.reportType}</span>
+        <span className="report-type">{typeLabel(report.reportType)}</span>
         <h1>{report.fileName}</h1>
         <div className="report-meta">
           <span>Generated {new Date(report.createdAt).toLocaleString()}</span>

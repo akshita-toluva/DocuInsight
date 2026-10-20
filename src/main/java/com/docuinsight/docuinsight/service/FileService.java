@@ -42,7 +42,7 @@ public class FileService {
        // if(contentType==null || (!contentType.equals("application/pdf")) && (!contentType.equals("text/csv")))
         if(contentType==null || !allowedTypes.contains(contentType))
         {
-            throw new IllegalArgumentException("Unsupported file type: " + contentType + ". Only PDF, DOCX ,TXT, CSV files are allowed.");
+            throw new IllegalArgumentException("Unsupported file type: " + contentType + ". Only PDF, DOCX, TXT, CSV and image (PNG, JPG, WEBP) files are allowed.");
         }
 
         byte[] header = file.getInputStream().readNBytes(12);

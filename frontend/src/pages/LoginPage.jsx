@@ -78,9 +78,6 @@ export default function LoginPage()
         <button className="btn" type="submit" disabled={loading}>
                   {loading ? 'Logging in…' : 'Log in'}
         </button>
-
-        <p className="auth-switch">
-        </p>
       </form>
     </div>
   )

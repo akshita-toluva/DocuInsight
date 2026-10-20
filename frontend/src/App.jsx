@@ -8,6 +8,9 @@ import ReportViewPage from './pages/ReportViewPage.jsx'
 import ReportsPage from './pages/ReportsPage.jsx'
 import CompareFilesPage from './pages/CompareFilesPage.jsx'
 import MultiReportViewPage from './pages/MultiReportViewPage.jsx'
+import ProfilePage from './pages/ProfilePage.jsx'
+import NotFoundPage from './pages/NotFoundPage.jsx'
+
 import './App.css'
 
 function App() {
@@ -24,8 +27,9 @@ function App() {
          <Route path="/reports" element={<ReportsPage />} />
          <Route path="/compare" element={<CompareFilesPage />} />
          <Route path="/multi-reports/:id" element={<MultiReportViewPage />} />
+         <Route path="/profile" element={<ProfilePage />} />
+         <Route path="*" element={<NotFoundPage />} />
        </Route>
-       <Route path="*" element={<h1>404 - Page not found </h1>} />
      </Routes>
    )
 

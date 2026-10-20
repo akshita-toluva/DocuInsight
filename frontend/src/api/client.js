@@ -25,7 +25,7 @@ api.interceptors.request.use((config)=>{
   return config
 })
 
-//request interceptor : on 401 (expired/invalid token) - log out
+//response interceptor : on 401 (expired/invalid token) - log out
 api.interceptors.response.use(
   (response) => response,
   (error) => {
