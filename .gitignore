@@ -36,3 +36,5 @@ src/main/resources/application-local.properties
 *.key
 uploads/
 keys.env
+.env
+

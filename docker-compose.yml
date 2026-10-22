@@ -1,0 +1,16 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: docuinsight-db
+    environment:
+      POSTGRES_DB: docuInsight_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - docuinsight-pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  docuinsight-pgdata:
