@@ -37,6 +37,9 @@ public class TextExtractionService {
     private final UploadedFileRepository fileRepository;
     private final ImageAnalysisService imageAnalysisService;
 
+    // Every extracted PDF page starts with "--- Page N ---" so chunks can keep their page number (RAG sources)
+    public static final String PAGE_MARKER_PREFIX = "--- Page ";
+    public static final String PAGE_MARKER_SUFFIX = " ---";
 
     public TextExtractionService(UploadedFileRepository fileRepository,ImageAnalysisService imageAnalysisService)
     {
@@ -176,58 +179,61 @@ public class TextExtractionService {
         return fullText.toString();
     }
 
-    private String extractFromPDFWithImages(String filePath) throws  Exception{
-        StringBuilder combined=new StringBuilder();
-        try(PDDocument document=Loader.loadPDF(Paths.get(filePath).toFile()))
-        {
-            //Part 1 extract all text using PDFBOX
-            PDFTextStripper stripper=new PDFTextStripper();
-            String allText=stripper.getText(document);
+    // Page-by-page PDF extraction: text + image descriptions, each page labelled with its number
+    private String extractFromPDFWithImages(String filePath) throws Exception {
+        StringBuilder combined = new StringBuilder();
+        try (PDDocument document = Loader.loadPDF(Paths.get(filePath).toFile())) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            PDFRenderer renderer = new PDFRenderer(document);
+            int pageCount = document.getNumberOfPages();
 
-            if(allText!=null && !allText.isBlank())
-            {
-                combined.append("=== TEXT CONTENT ===\n");
-                combined.append(allText.trim()).append("\n\n");
-            }
-            //Part 2 Check each page for embedded images
-            PDFRenderer renderer=new PDFRenderer(document);
-            int pageCount=document.getNumberOfPages();
-            boolean foundImages=false;
-            for(int i=0;i<pageCount;i++)
-            {
-                PDPage page=document.getPage(i);
-                PDResources resources = page.getResources();
+            for (int i = 0; i < pageCount; i++) {
+                int pageNumber = i + 1; // PDFBox page ranges are 1-based
 
-                boolean pageHasImage=false;
-                for(COSName name : resources.getXObjectNames())
-                {
-                    PDXObject obj=resources.getXObject(name);
-                    if(obj instanceof PDImageXObject)
-                    {
-                        pageHasImage=true;
-                        break;
-                    }
+                // Text of this page only
+                stripper.setStartPage(pageNumber);
+                stripper.setEndPage(pageNumber);
+                String pageText = stripper.getText(document).trim();
+
+                // Images on this page -> describe with the vision model (also covers scanned pages)
+                String imageDesc = null;
+                if (pageHasImage(document.getPage(i))) {
+                    BufferedImage pageImage = renderer.renderImageWithDPI(i, 150);
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    ImageIO.write(pageImage, "PNG", baos);
+                    String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
+                    imageDesc = imageAnalysisService.analyseImageFromBase64(base64, "image/png");
                 }
-                if(pageHasImage)
-                {
-                    if(!foundImages)
-                    {
-                        combined.append("=== IMAGE ANALYSIS ===\n");
-                        foundImages=true;
-                    }
-                    BufferedImage pageImage=renderer.renderImageWithDPI(i,150);
-                    ByteArrayOutputStream baos=new ByteArrayOutputStream();
-                    ImageIO.write(pageImage,"PNG",baos);
-                    String base64=Base64.getEncoder().encodeToString(baos.toByteArray());
 
-                    String imageDesc=imageAnalysisService.analyseImageFromBase64(base64,"image/png");
-                    combined.append("Page ").append(i+1).append("(images):\n");
-                    combined.append(imageDesc).append("\n\n");
+                boolean hasImageText = imageDesc != null && !imageDesc.isBlank();
+                if (pageText.isEmpty() && !hasImageText) {
+                    continue; // blank page: nothing to keep
                 }
+
+                combined.append(PAGE_MARKER_PREFIX).append(pageNumber).append(PAGE_MARKER_SUFFIX).append("\n");
+                if (!pageText.isEmpty()) {
+                    combined.append(pageText).append("\n");
+                }
+                if (hasImageText) {
+                    combined.append("[Image content]\n").append(imageDesc.trim()).append("\n");
+                }
+                combined.append("\n");
             }
         }
-        return combined.toString();
+        return combined.toString().trim();
+    }
 
+    private boolean pageHasImage(PDPage page) throws IOException {
+        PDResources resources = page.getResources();
+        if (resources == null) {
+            return false;
+        }
+        for (COSName name : resources.getXObjectNames()) {
+            if (resources.getXObject(name) instanceof PDImageXObject) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /****************** CSV Extraction using OpenCSV **************/
