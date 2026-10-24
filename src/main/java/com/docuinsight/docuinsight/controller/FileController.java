@@ -39,12 +39,7 @@ public class FileController {
     public ResponseEntity<ExtractionResponse> extractText(
             @PathVariable Long fileId,
             @AuthenticationPrincipal String email) throws Exception {
-        ExtractionResponse response= null;
-        try {
-            response = textExtractionService.extractText(fileId,email);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        ExtractionResponse response = textExtractionService.extractText(fileId, email);
         return ResponseEntity.ok(response);
     }
 }

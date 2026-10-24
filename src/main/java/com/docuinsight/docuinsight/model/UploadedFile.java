@@ -44,6 +44,9 @@ public class UploadedFile {
     @Column(name="uploaded_at")
     private LocalDateTime uploadedAt;
 
+    @Column(name = "indexed_at")
+    private LocalDateTime indexedAt;
+
     @PrePersist //Sets uploadedAt automatically before saving
     public void prePersist()
     {

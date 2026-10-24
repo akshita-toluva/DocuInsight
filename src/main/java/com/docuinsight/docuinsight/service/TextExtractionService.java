@@ -5,6 +5,8 @@ import com.docuinsight.docuinsight.model.UploadedFile;
 import com.docuinsight.docuinsight.repository.UploadedFileRepository;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -36,15 +38,21 @@ public class TextExtractionService {
 
     private final UploadedFileRepository fileRepository;
     private final ImageAnalysisService imageAnalysisService;
+    private final EmbeddingIngestionService embeddingIngestionService;
 
     // Every extracted PDF page starts with "--- Page N ---" so chunks can keep their page number (RAG sources)
     public static final String PAGE_MARKER_PREFIX = "--- Page ";
     public static final String PAGE_MARKER_SUFFIX = " ---";
 
-    public TextExtractionService(UploadedFileRepository fileRepository,ImageAnalysisService imageAnalysisService)
+    private static final Logger log = LoggerFactory.getLogger(TextExtractionService.class);
+
+    public TextExtractionService(UploadedFileRepository fileRepository,
+                                 ImageAnalysisService imageAnalysisService,
+                                 EmbeddingIngestionService embeddingIngestionService)
     {
         this.fileRepository = fileRepository;
         this.imageAnalysisService = imageAnalysisService;
+        this.embeddingIngestionService = embeddingIngestionService;
     }
 
     // METHOD called by FileController when POST /api/files/{fileId}/extract is hit
@@ -65,6 +73,10 @@ public class TextExtractionService {
         // If yes — skip re-processing, return cached text from DB
         if(file.getExtractedText()!=null && !file.getExtractedText().isEmpty())
         {
+            if (file.getIndexedAt() == null) {
+                indexQuietly(file);
+            }
+
             return  new ExtractionResponse(
                     file.getId(),
                     file.getFileName(),
@@ -112,6 +124,7 @@ public class TextExtractionService {
         // Next time /extract is called, Step 2 above will catch it and return instantly
         file.setExtractedText(extractedText);
         fileRepository.save(file);
+        indexQuietly(file);
 
         // Step 5: Return structured response to controller → controller sends to frontend
         return new ExtractionResponse(
@@ -123,6 +136,17 @@ public class TextExtractionService {
         );
 
     }
+
+    // Indexing must never break extraction. If it fails, we log it, indexedAt stays null,
+    // and the next /extract call tries again.
+    private void indexQuietly(UploadedFile file) {
+        try {
+            embeddingIngestionService.ingest(file);
+        } catch (Exception e) {
+            log.error("Indexing failed for file ID={}", file.getId(), e);
+        }
+    }
+
 
 
     /**********  PDF Extraction using Apache PDFBox ***********/
