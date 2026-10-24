@@ -24,15 +24,16 @@ public class ReportService {
     private final TextExtractionService textExtractionService;
     private final LLMService llmService;
     private final PromptTemplateService promptTemplateService;
+    private final RetrievalService retrievalService;
 
-
-    public ReportService(ReportRepository reportRepository, UploadedFileRepository uploadedFileRepository, UserRepository userRepository, TextExtractionService textExtractionService, LLMService llmService, PromptTemplateService promptTemplateService) {
+    public ReportService(ReportRepository reportRepository, UploadedFileRepository uploadedFileRepository, UserRepository userRepository, TextExtractionService textExtractionService, LLMService llmService, PromptTemplateService promptTemplateService, RetrievalService retrievalService) {
         this.reportRepository = reportRepository;
         this.uploadedFileRepository = uploadedFileRepository;
         this.userRepository = userRepository;
         this.textExtractionService = textExtractionService;
         this.llmService = llmService;
         this.promptTemplateService = promptTemplateService;
+        this.retrievalService=retrievalService;
     }
 
     @Transactional
@@ -192,19 +193,18 @@ public class ReportService {
                             "Current status:  " + report.getStatus()
             );
         }
-        //Get extracted text from the file linked to this report
-        //Works because Report has @ManyToOne uploadedFile
-        String extractedText=report.getUploadedFile().getExtractedText();
 
-        if(extractedText==null || extractedText.isBlank())
-        {
-            throw new IllegalStateException(
-                    "No extracted text found. Extract from the file first. "
-            );
+        //small doc -> whole text, large doc -> top chunks for THIS file AND THIS user
+        String context = retrievalService.buildContext(
+                report.getUploadedFile(), user.getId(), question);
+
+        String answer;
+        if (context.isBlank()) {
+            // No chunk passed the similarity threshold: refuse without calling Groq
+            answer = "I couldn't find information about this in the document.";
+        } else {
+            answer = llmService.answerQuestion(context, question);
         }
-
-        //Send to LLM and get answer
-        String answer= llmService.answerQuestion(extractedText,question);
 
         return new AskQuestionResponse(
                 reportId,
