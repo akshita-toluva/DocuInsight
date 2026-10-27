@@ -1,9 +1,12 @@
 package com.docuinsight.docuinsight.service;
 
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.stereotype.Service;
+
 
 @Service
 public class LLMService {
@@ -11,6 +14,7 @@ public class LLMService {
     private static final Logger log = LoggerFactory.getLogger(LLMService.class);
     private static final int MAX_TEXT_CHARS = 30_000;
     public static final String NOT_IN_DOCUMENT = "NOT_IN_DOCUMENT";
+    private static final int MAX_QUERIES = 3;
 
     private static final String SYSTEM_PROMPT =
             "You are a professional document analyst. " +
@@ -62,14 +66,44 @@ public class LLMService {
         return callModel(prompt);
     }
 
+    // Split one user question into 1-3 standalone search queries.
+    public List<String> toSearchQueries(String question) {
+        String prompt = "Rewrite the user's question into standalone search queries for a document search engine.\n" +
+                "Rules:\n" +
+                "1. If the question asks about several different things, write one query per thing (maximum " + MAX_QUERIES + ").\n" +
+                "2. If it asks about one thing, write exactly one query.\n" +
+                "3. Keep names, numbers and key terms exactly as written. Do not answer the question.\n" +
+                "4. Output only the queries, one per line, with no numbering or extra text.\n\n" +
+                "Question: " + question;
+        try {
+            List<String> queries = callModel(prompt, "low").lines()
+                    .map(line -> line.replaceFirst("^\\s*(?:[-*•]|\\d+[.)])\\s*", "").trim()) // strip "1." / "-" if the model adds them
+                    .filter(line -> !line.isBlank())
+                    .distinct()
+                    .limit(MAX_QUERIES)
+                    .toList();
+            log.info("Search queries for '{}': {}", question, queries);
+            return queries.isEmpty() ? List.of(question) : queries;
+        } catch (RuntimeException e) {
+            log.warn("Query rewrite failed, searching with the original question: {}", e.getMessage());
+            return List.of(question);
+        }
+    }
+
     // One place that calls the model: build the prompt, send it, return the text
     private String callModel(String prompt) {
+        return callModel(prompt, null);
+    }
+
+    // reasoningEffort: null = model default; "low" = fast, for small helper tasks (Day 15)
+    private String callModel(String prompt, String reasoningEffort) {
         String content;
         try {
-            content = chatClient.prompt()
-                    .user(prompt)
-                    .call()
-                    .content();
+            var request = chatClient.prompt().user(prompt);
+            if (reasoningEffort != null) {
+                request = request.options(OpenAiChatOptions.builder().reasoningEffort(reasoningEffort));
+            }
+            content = request.call().content();
         } catch (RuntimeException e) {
             throw translateError(e);
         }
