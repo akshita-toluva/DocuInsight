@@ -10,6 +10,7 @@ public class LLMService {
 
     private static final Logger log = LoggerFactory.getLogger(LLMService.class);
     private static final int MAX_TEXT_CHARS = 30_000;
+    public static final String NOT_IN_DOCUMENT = "NOT_IN_DOCUMENT";
 
     private static final String SYSTEM_PROMPT =
             "You are a professional document analyst. " +
@@ -47,11 +48,15 @@ public class LLMService {
         String safeText = truncateText(extractedText);
 
         // Stay inside the document; the last sentence prevents made-up answers
-        String prompt = "You are a document expert. Answer the following question " +
-                "based ONLY on the document content provided below. " +
-                "If the answer is not in the document, state that clearly.\n\n" +
+        String prompt = "You are a document expert. Answer the question using ONLY the numbered passages below.\n" +
+                "Rules:\n" +
+                "1. After each fact, cite the passage number(s) in square brackets, e.g. [2] or [1][3].\n" +
+                "2. If the passages contain NONE of the answer, reply with exactly " + NOT_IN_DOCUMENT +
+                " and nothing else. If they contain only part of it, answer that part and say which part is not in the document.\n" +
+                " and nothing else.\n" +
+                "3. Never use outside knowledge.\n\n" +
                 "Question: " + question + "\n\n" +
-                "--- DOCUMENT CONTENT ---\n\n" + safeText;
+                "--- PASSAGES ---\n\n" + safeText;
 
         log.info("Answering Q&A via Groq. Question: {}", question);
         return callModel(prompt);

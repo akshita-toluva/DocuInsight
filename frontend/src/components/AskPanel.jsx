@@ -6,6 +6,36 @@ import { getErrorMessage } from '../api/client.js'
 
 const MAX_LENGTH = 1000
 
+const SNIPPET_CHARS = 200
+
+// Display-only cleanup: the stored chunk text is unchanged
+function cleanSource(text) {
+  return text
+    .replace(/\*\*/g, '')          // bold markers from the vision model's markdown
+    .replace(/^#+\s*/gm, '')       // markdown heading markers at line start
+    .replace(/\n{3,}/g, '\n\n')    // collapse big blank gaps
+    .trim()
+}
+
+// One source passage: short snippet first, "Show more" for the full chunk
+function SourceText({ text }) {
+  const [expanded, setExpanded] = useState(false)
+  const clean = cleanSource(text)
+  const isLong = clean.length > SNIPPET_CHARS
+  const shown = expanded || !isLong ? clean : clean.slice(0, SNIPPET_CHARS).trimEnd() + '…'
+
+  return (
+    <>
+      <blockquote>{shown}</blockquote>
+      {isLong && (
+        <button type="button" className="link-btn" onClick={() => setExpanded(!expanded)}>
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
+    </>
+  )
+}
+
 export default function AskPanel({ reportId }) {
   const [question, setQuestion] = useState('')
   const [history, setHistory] = useState([]) // [{ id, question, answer }], oldest first
@@ -22,7 +52,10 @@ export default function AskPanel({ reportId }) {
     setError('')
     try {
       const result = await askQuestion(reportId, trimmed)
-      setHistory((prev) => [...prev, { id: Date.now(), question: result.question, answer: result.answer }])
+      setHistory((prev) => [
+              ...prev,
+              { id: Date.now(), question: result.question, answer: result.answer, sources: result.sources ?? [] },
+            ])
       setQuestion('')
     } catch (err) {
       setError(getErrorMessage(err))
@@ -53,6 +86,23 @@ export default function AskPanel({ reportId }) {
               <div className="qa-answer">
                 <Markdown remarkPlugins={[remarkGfm]}>{item.answer}</Markdown>
               </div>
+              {item.sources.length > 0 && (
+                 <details className="qa-sources">
+                    <summary>
+                      Sources ({item.sources.length})
+                    </summary>
+                    <ul>
+                    {item.sources.map((s) => (
+                     <li key={s.number}>
+                      <span className="qa-source-label">
+                       [{s.number}]{s.page != null && ` · Page ${s.page}`}
+                      </span>
+                       <SourceText text={s.text} />
+                     </li>
+                     ))}
+                    </ul>
+                 </details>
+              )}
             </li>
           ))}
         </ol>

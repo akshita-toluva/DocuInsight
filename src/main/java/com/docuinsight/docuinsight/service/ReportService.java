@@ -8,6 +8,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,6 +29,8 @@ public class ReportService {
     private final LLMService llmService;
     private final PromptTemplateService promptTemplateService;
     private final RetrievalService retrievalService;
+    private static final String REFUSAL = "I couldn't find information about this in the document.";
+    private static final Pattern CITATION = Pattern.compile("[\\[【](\\d+)[\\]】]");
 
     public ReportService(ReportRepository reportRepository, UploadedFileRepository uploadedFileRepository, UserRepository userRepository, TextExtractionService textExtractionService, LLMService llmService, PromptTemplateService promptTemplateService, RetrievalService retrievalService) {
         this.reportRepository = reportRepository;
@@ -194,16 +200,18 @@ public class ReportService {
             );
         }
 
-        //small doc -> whole text, large doc -> top chunks for THIS file AND THIS user
-        String context = retrievalService.buildContext(
+        RetrievalService.RetrievalResult retrieval = retrievalService.retrieve(
                 report.getUploadedFile(), user.getId(), question);
 
-        String answer;
-        if (context.isBlank()) {
-            // No chunk passed the similarity threshold: refuse without calling Groq
-            answer = "I couldn't find information about this in the document.";
-        } else {
-            answer = llmService.answerQuestion(context, question);
+        String answer = REFUSAL;
+        List<SourcePassage> sources = List.of();
+
+        if (!retrieval.passages().isEmpty()) {
+            String raw = llmService.answerQuestion(retrieval.context(), question);
+            if (!raw.strip().startsWith(LLMService.NOT_IN_DOCUMENT)) {
+                answer = raw.replaceAll("【(\\d+)】", "[$1]");
+                sources = citedSources(raw, retrieval.passages());
+            }
         }
 
         return new AskQuestionResponse(
@@ -211,8 +219,26 @@ public class ReportService {
                 report.getUploadedFile().getFileName(),
                 question,
                 answer,
+                sources,
                 java.time.LocalDateTime.now()
         );
+    }
+
+    private List<SourcePassage> citedSources(String answer, List<SourcePassage> passages) {
+        Set<Integer> cited = new LinkedHashSet<>();
+        Matcher m = CITATION.matcher(answer);
+        while (m.find()) {
+            cited.add(Integer.parseInt(m.group(1)));
+        }
+        List<SourcePassage> result = passages.stream()
+                .filter(p -> cited.contains(p.number()))
+                .toList();
+        if (result.isEmpty()) {
+            log.warn("Answer cited no valid passage numbers; cited={}", cited);
+            // Large doc: all retrieved passages (≤5) are still honest evidence. Small doc: too many to be useful.
+            return passages.size() <= RetrievalService.TOP_K ? passages : List.of();
+        }
+        return result;
     }
 
 }
