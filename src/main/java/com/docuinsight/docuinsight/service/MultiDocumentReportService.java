@@ -25,14 +25,19 @@ public class MultiDocumentReportService {
     private final TextExtractionService textExtractionService;
     private final LLMService llmService;
     private final PromptTemplateService promptTemplateService;
+    private final QuotaService quotaService;
 
-    public MultiDocumentReportService(MultiDocumentReportRepository multiDocumentReportRepository, UserRepository userRepository, UploadedFileRepository uploadedFileRepository, TextExtractionService textExtractionService, LLMService llmService, PromptTemplateService promptTemplateService) {
+    public MultiDocumentReportService(MultiDocumentReportRepository multiDocumentReportRepository,
+                                      UserRepository userRepository, UploadedFileRepository uploadedFileRepository,
+                                      TextExtractionService textExtractionService, LLMService llmService,
+                                      PromptTemplateService promptTemplateService, QuotaService quotaService) {
         this.multiDocumentReportRepository = multiDocumentReportRepository;
         this.userRepository = userRepository;
         this.uploadedFileRepository = uploadedFileRepository;
         this.textExtractionService = textExtractionService;
         this.llmService = llmService;
         this.promptTemplateService = promptTemplateService;
+        this.quotaService=quotaService;
     }
 
     @Transactional
@@ -98,6 +103,8 @@ public class MultiDocumentReportService {
                 request.getCustomPrompt(),
                 fileNames);
 
+        quotaService.consume(user.getId(), QuotaService.Action.REPORT);
+
         //step 6 : Save as processing
         MultiDocumentReport report=new MultiDocumentReport();
         report.setUser(user);
@@ -119,6 +126,7 @@ public class MultiDocumentReportService {
                     report.getId(), files.size());
             return MultiDocumentReportResponse.from(report);
         } catch (Exception e) {
+            quotaService.refund(user.getId(), QuotaService.Action.REPORT);
             log.error("Multi-doc report failed ID={}", report.getId(), e);
             report.setStatus(MultiDocumentReport.ReportStatus.FAILED);
             report.setErrorMessage(e.getMessage() != null

@@ -22,9 +22,9 @@ public class RetrievalService {
     private static final Logger log = LoggerFactory.getLogger(RetrievalService.class);
 
     static final int SMALL_DOC_CHARS = 12_000;   // at or below this, send every chunk (whole document)
-    static final int TOP_K = 5;                  // chunks per search query
-    static final int MAX_PASSAGES = 6;           // chunks sent to the model after merging (Day 15)
-    static final double MIN_SIMILARITY = 0.3;    // drop weak matches (tuned on Day 16)
+    static final int TOP_K = 8;                  // chunks per search query
+    static final int MAX_PASSAGES = 8;           // chunks sent to the model after merging
+    static final double MIN_SIMILARITY = 0.25;
 
     public record RetrievalResult(List<SourcePassage> passages, String context) {
     }

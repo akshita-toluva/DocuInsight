@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect,useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { askQuestion } from '../api/reports.js'
 import { getErrorMessage } from '../api/client.js'
+import { getUsage } from '../api/users.js'
 
 const MAX_LENGTH = 1000
 
@@ -15,6 +16,11 @@ function cleanSource(text) {
     .replace(/^#+\s*/gm, '')       // markdown heading markers at line start
     .replace(/\n{3,}/g, '\n\n')    // collapse big blank gaps
     .trim()
+}
+
+// Display-only: hide the [1][2] citation markers; the backend still uses them to pick sources
+function stripCitations(text) {
+  return text.replace(/\s?\[\d+\]/g, '')
 }
 
 // One source passage: short snippet first, "Show more" for the full chunk
@@ -42,8 +48,17 @@ export default function AskPanel({ reportId }) {
   const [asking, setAsking] = useState(false)
   const [error, setError] = useState('')
 
+  const [usage, setUsage] = useState(null)
+
+  // The counter is a convenience: if it fails to load, asking still works
+  function refreshUsage() {
+      getUsage().then(setUsage).catch(() => {})
+  }
+  useEffect(() => { refreshUsage() }, [])
+
+  const questionsLeft = usage ? Math.max(usage.questionsLimit - usage.questionsUsed, 0) : null
   const trimmed = question.trim()
-  const canAsk = trimmed.length > 0 && trimmed.length <= MAX_LENGTH && !asking
+  const canAsk = trimmed.length > 0 && trimmed.length <= MAX_LENGTH && !asking && questionsLeft !== 0
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -61,6 +76,7 @@ export default function AskPanel({ reportId }) {
       setError(getErrorMessage(err))
     } finally {
       setAsking(false)
+      refreshUsage()
     }
   }
 
@@ -84,18 +100,16 @@ export default function AskPanel({ reportId }) {
             <li key={item.id}>
               <p className="qa-question">{item.question}</p>
               <div className="qa-answer">
-                <Markdown remarkPlugins={[remarkGfm]}>{item.answer}</Markdown>
-              </div>
+                 <Markdown remarkPlugins={[remarkGfm]}>{stripCitations(item.answer)}</Markdown>
+               </div>
               {item.sources.length > 0 && (
                  <details className="qa-sources">
-                    <summary>
-                      Sources ({item.sources.length})
-                    </summary>
+                    <summary>Where this answer came from ({item.sources.length})</summary>
                     <ul>
                     {item.sources.map((s) => (
                      <li key={s.number}>
                       <span className="qa-source-label">
-                       [{s.number}]{s.page != null && ` · Page ${s.page}`}
+                        {s.page != null ? `Page ${s.page}` : `Passage ${s.number}`}
                       </span>
                        <SourceText text={s.text} />
                      </li>
@@ -120,6 +134,7 @@ export default function AskPanel({ reportId }) {
         <div className="ask-row">
           <span className={trimmed.length > MAX_LENGTH ? 'text-error small' : 'muted small'}>
             {trimmed.length}/{MAX_LENGTH} · Ctrl + Enter to send
+            {questionsLeft !== null && ` · ${questionsLeft} of ${usage.questionsLimit} questions left today`}
           </span>
           <button className="btn btn-inline" type="submit" disabled={!canAsk}>
             {asking ? 'Thinking…' : 'Ask'}

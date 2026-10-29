@@ -17,3 +17,9 @@ export async function changePassword(currentPassword, newPassword) {
   const { data } = await api.put('/api/users/changePassword', { currentPassword, newPassword })
   return data
 }
+
+// GET /api/users/usage -> { reportsUsed, reportsLimit, questionsUsed, questionsLimit, resetsInSeconds }
+export async function getUsage() {
+  const { data } = await api.get('/api/users/usage')
+  return data
+}

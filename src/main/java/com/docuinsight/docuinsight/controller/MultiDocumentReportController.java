@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ContentDisposition;
+import com.docuinsight.docuinsight.service.QuotaExceededException;
 
 import java.util.List;
 import java.util.Map;
@@ -39,7 +40,9 @@ public class MultiDocumentReportController{
         try {
             MultiDocumentReportResponse response = multiDocumentReportService.generateMultiReport(request, authentication.getName());
             return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
+        } catch (QuotaExceededException e) {
+            throw e; // let GlobalExceptionHandler send 429 + Retry-After
+        }catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", e.getMessage()));
         } catch (SecurityException e) {

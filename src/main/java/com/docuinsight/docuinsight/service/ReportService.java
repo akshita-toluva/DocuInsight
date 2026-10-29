@@ -31,8 +31,12 @@ public class ReportService {
     private final RetrievalService retrievalService;
     private static final String REFUSAL = "I couldn't find information about this in the document.";
     private static final Pattern CITATION = Pattern.compile("[\\[【](\\d+)[\\]】]");
+    private final QuotaService quotaService;
 
-    public ReportService(ReportRepository reportRepository, UploadedFileRepository uploadedFileRepository, UserRepository userRepository, TextExtractionService textExtractionService, LLMService llmService, PromptTemplateService promptTemplateService, RetrievalService retrievalService) {
+    public ReportService(ReportRepository reportRepository, UploadedFileRepository uploadedFileRepository,
+                         UserRepository userRepository, TextExtractionService textExtractionService,
+                         LLMService llmService, PromptTemplateService promptTemplateService,
+                         RetrievalService retrievalService , QuotaService quotaService) {
         this.reportRepository = reportRepository;
         this.uploadedFileRepository = uploadedFileRepository;
         this.userRepository = userRepository;
@@ -40,6 +44,7 @@ public class ReportService {
         this.llmService = llmService;
         this.promptTemplateService = promptTemplateService;
         this.retrievalService=retrievalService;
+        this.quotaService=quotaService;
     }
 
     @Transactional
@@ -94,6 +99,9 @@ public class ReportService {
         //buildPrompt
         String prompt = promptTemplateService.buildPrompt(request.getReportType(), request.getCustomPrompt(), file.getFileName());
 
+        //only reports that really call the AI count (cached ones above are free)
+        quotaService.consume(user.getId(), QuotaService.Action.REPORT);
+
         // Save report as PROCESSING
         Report report = new Report();
         report.setUploadedFile(file);
@@ -113,6 +121,7 @@ public class ReportService {
             log.info("Report generated successfully. Report ID={}", report.getId());
             return ReportResponse.from(report, false);
         } catch (Exception e) {
+            quotaService.refund(user.getId(), QuotaService.Action.REPORT);
             log.error("LLM generation failed for report ID={}", report.getId(), e);
             report.setStatus(Report.ReportStatus.FAILED);
             report.setErrorMessage(e.getMessage() != null ?
@@ -200,6 +209,8 @@ public class ReportService {
             );
         }
 
+        quotaService.consume(user.getId(), QuotaService.Action.QUESTION);
+
         RetrievalService.RetrievalResult retrieval = retrievalService.retrieve(
                 report.getUploadedFile(), user.getId(), question);
 
@@ -207,7 +218,13 @@ public class ReportService {
         List<SourcePassage> sources = List.of();
 
         if (!retrieval.passages().isEmpty()) {
-            String raw = llmService.answerQuestion(retrieval.context(), question);
+            String raw;
+            try {
+                raw = llmService.answerQuestion(retrieval.context(), question);
+            } catch (RuntimeException e) {
+                quotaService.refund(user.getId(), QuotaService.Action.QUESTION);
+                throw e;
+            }
             if (!raw.strip().startsWith(LLMService.NOT_IN_DOCUMENT)) {
                 answer = raw.replaceAll("【(\\d+)】", "[$1]");
                 sources = citedSources(raw, retrieval.passages());

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { generateReport } from '../api/reports.js'
 import { getErrorMessage } from '../api/client.js'
+import { getUsage } from '../api/users.js'
 
 const REPORT_TYPES = [
   { value: 'EXECUTIVE', label: 'Executive Summary', hint: 'Business view: overview, key findings, impact, recommendations' },
@@ -21,6 +22,9 @@ export default function GenerateReportPage() {
   const [generating, setGenerating] = useState(false)
   const [seconds, setSeconds] = useState(0)
   const [error, setError] = useState('')
+  const [usage, setUsage] = useState(null)
+
+  useEffect(() => { getUsage().then(setUsage).catch(() => {}) }, [])
 
   // Live "Generating… 12s" counter while waiting for the AI
   useEffect(() => {
@@ -113,6 +117,11 @@ export default function GenerateReportPage() {
         <button className="btn" type="submit" disabled={generating || !promptValid}>
           {generating ? `Generating… ${seconds}s` : 'Generate report'}
         </button>
+        {usage && (
+           <p className="muted small">
+              {Math.max(usage.reportsLimit - usage.reportsUsed, 0)} of {usage.reportsLimit} new AI reports left today (saved reports are free)
+           </p>
+        )}
         {generating && (
           <p className="muted small">AI reports usually take 5–30 seconds. Please keep this page open.</p>
         )}

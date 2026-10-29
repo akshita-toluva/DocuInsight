@@ -13,6 +13,10 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.exc.InvalidFormatException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import com.docuinsight.docuinsight.service.QuotaExceededException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.http.HttpHeaders;
+
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -102,6 +106,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleNoResource(NoResourceFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("error", "Endpoint not found."));
+    }
+
+    // Daily quota used up -> 429 + Retry-After (seconds until midnight UTC) (Day 17)
+    @ExceptionHandler(QuotaExceededException.class)
+    public ResponseEntity<Map<String, String>> handleQuota(QuotaExceededException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()))
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, String>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", "Invalid value for parameter '" + ex.getName() + "'."));
     }
 
     // Catch-all — handles anything not caught above

@@ -15,6 +15,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final QuotaService quotaService;
 
     public UserProfileResponse getProfile(String email)
     {
@@ -70,6 +71,12 @@ public class UserService {
         //All check passed
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+
+    public UsageResponse getUsage(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+        return quotaService.usage(user.getId());
     }
 
 }

@@ -52,13 +52,18 @@ public class LLMService {
         String safeText = truncateText(extractedText);
 
         // Stay inside the document; the last sentence prevents made-up answers
-        String prompt = "You are a document expert. Answer the question using ONLY the numbered passages below.\n" +
+        // Facts must come from the passages; analysis (strengths, weaknesses, gaps) may be reasoned FROM them (Day 17)
+        String prompt = "You are a document analyst. Answer the question using ONLY the numbered passages below.\n" +
                 "Rules:\n" +
-                "1. After each fact, cite the passage number(s) in square brackets, e.g. [2] or [1][3].\n" +
-                "2. If the passages contain NONE of the answer, reply with exactly " + NOT_IN_DOCUMENT +
-                " and nothing else. If they contain only part of it, answer that part and say which part is not in the document.\n" +
+                "1. Facts: state only facts found in the passages and cite the passage number(s) after each, e.g. [2].\n" +
+                "2. Assessment questions (strengths, weaknesses, disadvantages, gaps, risks, suitability, recommendations) " +
+                "are answerable whenever the passages describe the person, product or topic being assessed: list points " +
+                "supported by the passages (cite them), note what the document does not show (missing skills, evidence or details), " +
+                "and say it is an assessment based on the document. Do NOT reply " + NOT_IN_DOCUMENT + " for these.\n" +
+                "3. Factual questions only: if the passages contain nothing relevant, reply with exactly " + NOT_IN_DOCUMENT +
                 " and nothing else.\n" +
-                "3. Never use outside knowledge.\n\n" +
+                "4. If they contain only part of the answer, answer that part and say which part is not in the document.\n" +
+                "5. Never invent facts, numbers, names or dates that are not in the passages.\n\n" +
                 "Question: " + question + "\n\n" +
                 "--- PASSAGES ---\n\n" + safeText;
 

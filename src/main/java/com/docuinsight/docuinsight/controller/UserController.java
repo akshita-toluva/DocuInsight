@@ -30,6 +30,12 @@ public class UserController {
         return ResponseEntity.ok(userService.updateProfile(email, request));
     }
 
+    // Today's AI usage, so the UI can show "27 of 30 questions left"
+    @GetMapping("/usage")
+    public ResponseEntity<UsageResponse> getUsage(@AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(userService.getUsage(email));
+    }
+
     @PutMapping("/changePassword")
     public ResponseEntity<Map<String,String>> changePassword(
             @AuthenticationPrincipal String email,

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ContentDisposition;
+import com.docuinsight.docuinsight.service.QuotaExceededException;
 
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,8 @@ public class ReportController {
         try{
             ReportResponse response=reportService.generateReport(fileId,request, authentication.getName());
             return ResponseEntity.ok(response);
+        }catch (QuotaExceededException e) {
+            throw e; // let GlobalExceptionHandler send 429 + Retry-After
         }catch (IllegalArgumentException e){
             return ResponseEntity.badRequest()
                     .body(Map.of("error", e.getMessage()));
@@ -145,7 +148,9 @@ public class ReportController {
                     request.getQuestion(),
                     authentication.getName());
             return ResponseEntity.ok(response);
-        } catch (IllegalStateException e) {
+        } catch (QuotaExceededException e) {
+            throw e; // let GlobalExceptionHandler send 429 + Retry-After
+        }catch (IllegalStateException e) {
             //Report not completed or no extracted text
             return ResponseEntity.badRequest()
                     .body(Map.of("error", e.getMessage()));
