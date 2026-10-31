@@ -15,6 +15,8 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
 
 @Service
 public class RetrievalService {
@@ -25,6 +27,11 @@ public class RetrievalService {
     static final int TOP_K = 8;                  // chunks per search query
     static final int MAX_PASSAGES = 8;           // chunks sent to the model after merging
     static final double MIN_SIMILARITY = 0.25;
+    static final int OVERVIEW_PASSAGES = 8;      // overview questions: spread of chunks across the whole document
+    private static final Pattern OVERVIEW = Pattern.compile(
+            "\\b(what\\s+(is|'s)\\s+(this|the)\\s+(document|file|pdf|paper|report|book)\\s+about"
+                    + "|summar(y|ise|ize)|overview|gist|tl;?dr|main\\s+(idea|topic|points?)|key\\s+(points|takeaways))\\b",
+            Pattern.CASE_INSENSITIVE);
 
     public record RetrievalResult(List<SourcePassage> passages, String context) {
     }
@@ -50,9 +57,14 @@ public class RetrievalService {
             throw new IllegalStateException("No extracted text found. Extract from the file first.");
         }
 
-        List<SourcePassage> passages = (text.length() <= SMALL_DOC_CHARS)
-                ? allChunks(file, text)
-                : searchChunks(file, userId, question);
+        List<SourcePassage> passages;
+        if (text.length() <= SMALL_DOC_CHARS) {
+            passages = allChunks(file, text);
+        } else if (OVERVIEW.matcher(question).find()) {
+            passages = overviewChunks(file, text);
+        } else {
+            passages = searchChunks(file, userId, question);
+        }
 
         return new RetrievalResult(passages, toContext(passages));
     }
@@ -153,6 +165,7 @@ public class RetrievalService {
     }
 
     private static double scoreOf(Document d) {
+
         return d.getScore() == null ? 0.0 : d.getScore();
     }
 
@@ -160,4 +173,31 @@ public class RetrievalService {
     private static Integer toInteger(Object value) {
         return (value instanceof Number n) ? n.intValue() : null;
     }
+
+    // Overview question on a large document: no single chunk matches "what is this about",
+    // so similarity search finds nothing. Send the opening (title/abstract) + an even spread to the end.
+    private List<SourcePassage> overviewChunks(UploadedFile file, String text) {
+        List<TextChunk> chunks = chunkingService.chunk(text);
+        int n = chunks.size();
+
+        TreeSet<Integer> picks = new TreeSet<>();               // sorted, no duplicates
+        for (int i = 0; i < Math.min(2, n); i++) {
+            picks.add(i);                                        // title + abstract / intro
+        }
+        int spread = OVERVIEW_PASSAGES - picks.size();
+        for (int s = 1; s <= spread && n > 2; s++) {
+            picks.add(2 + (int) Math.round((double) s * (n - 3) / spread)); // ... evenly to the last chunk
+        }
+
+        List<SourcePassage> passages = new ArrayList<>();
+        int number = 1;
+        for (int i : picks) {
+            TextChunk c = chunks.get(i);
+            passages.add(new SourcePassage(number++, c.page(), c.index(), c.text(), null));
+        }
+        log.info("File ID={} overview question: sending {} of {} chunks {}", file.getId(), passages.size(), n, picks);
+        return passages;
+    }
+
 }
+

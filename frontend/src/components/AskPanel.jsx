@@ -20,7 +20,7 @@ function cleanSource(text) {
 
 // Display-only: hide the [1][2] citation markers; the backend still uses them to pick sources
 function stripCitations(text) {
-  return text.replace(/\s?\[\d+\]/g, '')
+  return text.replace(/\s?(\[\d+\]|【[^】]*】)/g, '')
 }
 
 // One source passage: short snippet first, "Show more" for the full chunk

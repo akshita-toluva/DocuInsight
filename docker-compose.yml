@@ -10,7 +10,33 @@ services:
       - "5433:5432"
     volumes:
       - docuinsight-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d docuInsight_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    image: docuinsight-backend
+    container_name: docuinsight-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/docuInsight_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+    ports:
+      - "8080:8080"
+    volumes:
+      - docuinsight-uploads:/app/uploads
+    mem_limit: 512m
     restart: unless-stopped
 
 volumes:
   docuinsight-pgdata:
+  docuinsight-uploads:

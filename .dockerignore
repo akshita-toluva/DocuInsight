@@ -1,0 +1,8 @@
+target/
+frontend/
+.git/
+.idea/
+uploads/
+.env
+*.log
+src/main/resources/application-local.properties

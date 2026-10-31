@@ -30,7 +30,7 @@ public class ReportService {
     private final PromptTemplateService promptTemplateService;
     private final RetrievalService retrievalService;
     private static final String REFUSAL = "I couldn't find information about this in the document.";
-    private static final Pattern CITATION = Pattern.compile("[\\[【](\\d+)[\\]】]");
+    private static final Pattern CITATION = Pattern.compile("[\\[【](\\d+)(?:†[^\\]】]*)?[\\]】]");
     private final QuotaService quotaService;
 
     public ReportService(ReportRepository reportRepository, UploadedFileRepository uploadedFileRepository,
@@ -226,7 +226,7 @@ public class ReportService {
                 throw e;
             }
             if (!raw.strip().startsWith(LLMService.NOT_IN_DOCUMENT)) {
-                answer = raw.replaceAll("【(\\d+)】", "[$1]");
+                answer = CITATION.matcher(raw).replaceAll("[$1]");   // every style becomes [n]
                 sources = citedSources(raw, retrieval.passages());
             }
         }
