@@ -1,3 +1,9 @@
+# ---------- Stage 0: model files ----------
+# Render's build downloads them here. Locally, --build-context models=<folder> REPLACES this stage (no download).
+FROM scratch AS models
+ADD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx /model.onnx
+ADD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer.json /tokenizer.json
+
 # ---------- Stage 1: build the jar with Maven ----------
 FROM maven:3.9.11-eclipse-temurin-21 AS build
 WORKDIR /build
