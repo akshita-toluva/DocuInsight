@@ -43,7 +43,8 @@ public class TextExtractionService {
     // Every extracted PDF page starts with "--- Page N ---" so chunks can keep their page number (RAG sources)
     public static final String PAGE_MARKER_PREFIX = "--- Page ";
     public static final String PAGE_MARKER_SUFFIX = " ---";
-
+    private static final int MIN_TEXT_CHARS = 200;   // page with this much text: skip vision (the text already covers it)
+    private static final int MAX_VISION_PAGES = 5;
     private static final Logger log = LoggerFactory.getLogger(TextExtractionService.class);
 
     public TextExtractionService(UploadedFileRepository fileRepository,
@@ -210,7 +211,7 @@ public class TextExtractionService {
             PDFTextStripper stripper = new PDFTextStripper();
             PDFRenderer renderer = new PDFRenderer(document);
             int pageCount = document.getNumberOfPages();
-
+            int visionCalls = 0;
             for (int i = 0; i < pageCount; i++) {
                 int pageNumber = i + 1; // PDFBox page ranges are 1-based
 
@@ -219,14 +220,21 @@ public class TextExtractionService {
                 stripper.setEndPage(pageNumber);
                 String pageText = stripper.getText(document).trim();
 
-                // Images on this page -> describe with the vision model (also covers scanned pages)
+                // Vision only where the text is missing (scanned page / image-only slide), max MAX_VISION_PAGES per file
                 String imageDesc = null;
-                if (pageHasImage(document.getPage(i))) {
-                    BufferedImage pageImage = renderer.renderImageWithDPI(i, 150);
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    ImageIO.write(pageImage, "PNG", baos);
-                    String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
-                    imageDesc = imageAnalysisService.analyseImageFromBase64(base64, "image/png");
+                if (pageText.length() < MIN_TEXT_CHARS && visionCalls < MAX_VISION_PAGES
+                        && pageHasImage(document.getPage(i))) {
+                    visionCalls++;
+                    try {
+                        BufferedImage pageImage = renderer.renderImageWithDPI(i, 150);
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        ImageIO.write(pageImage, "PNG", baos);
+                        String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
+                        imageDesc = imageAnalysisService.analyseImageFromBase64(base64, "image/png");
+                    } catch (Exception e) {
+                        // One failed image (e.g. Groq 429) must not fail the whole file
+                        log.warn("Vision skipped for page {}: {}", pageNumber, e.getMessage());
+                    }
                 }
 
                 boolean hasImageText = imageDesc != null && !imageDesc.isBlank();
