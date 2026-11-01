@@ -40,10 +40,18 @@ api.interceptors.response.use(
    }
 )
 
-//readable error
+const WAKING_UP = 'The server is waking up or restarting (free hosting). Please wait 1–2 minutes and try again.'
+
 export function getErrorMessage(error)
 {
-   if(!error.response) return 'Cannot reach the server. Is the backend running?'
+   // No response at all: server asleep, restarting after a crash, or offline
+   if(!error.response) {
+     if(error.code === 'ECONNABORTED') return 'The server is taking too long — it may be waking up. Please wait a minute and try again.'
+     return WAKING_UP
+   }
+
+   // Render's proxy answers 502/503/504 while the backend is starting
+   if([502, 503, 504].includes(error.response.status)) return WAKING_UP
 
    const data=error.response.data
    if(data?.error) return data.error
