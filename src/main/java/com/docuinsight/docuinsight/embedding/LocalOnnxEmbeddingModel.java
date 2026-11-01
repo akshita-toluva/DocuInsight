@@ -27,6 +27,7 @@ public class LocalOnnxEmbeddingModel implements EmbeddingModel, AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(LocalOnnxEmbeddingModel.class);
     private static final String OUTPUT_NAME = "last_hidden_state";
     private static final int DIMENSIONS = 384;
+    private static final int MAX_BATCH = 8;   // chunks per ONNX run: keeps the attention-tensor spike small on 512 MB
 
     private final OrtEnvironment environment = OrtEnvironment.getEnvironment();
     private final OrtSession session;
@@ -49,6 +50,19 @@ public class LocalOnnxEmbeddingModel implements EmbeddingModel, AutoCloseable {
     @Override
     public EmbeddingResponse call(EmbeddingRequest request) {
         List<String> texts = request.getInstructions();
+        List<Embedding> embeddings = new ArrayList<>(texts.size());
+        for (int start = 0; start < texts.size(); start += MAX_BATCH) {
+            List<String> part = texts.subList(start, Math.min(start + MAX_BATCH, texts.size()));
+            float[][] vectors = embedBatch(part);
+            for (int i = 0; i < vectors.length; i++) {
+                embeddings.add(new Embedding(vectors[i], start + i));   // index stays global, in input order
+            }
+        }
+        return new EmbeddingResponse(embeddings);
+    }
+
+    // One ONNX run for at most MAX_BATCH texts; returns one 384-d vector per text
+    private float[][] embedBatch(List<String> texts) {
         Encoding[] encodings = tokenizer.batchEncode(texts);
 
         int batch = encodings.length;
@@ -71,16 +85,15 @@ public class LocalOnnxEmbeddingModel implements EmbeddingModel, AutoCloseable {
             if (inputNames.contains("token_type_ids")) inputs.put("token_type_ids", types);
 
             try (OrtSession.Result result = session.run(inputs)) {
-                // [batch][tokens][384]: one vector per token
                 float[][][] tokenVectors = (float[][][]) result.get(OUTPUT_NAME)
                         .orElseThrow(() -> new IllegalStateException("Model output '" + OUTPUT_NAME + "' missing"))
                         .getValue();
 
-                List<Embedding> embeddings = new ArrayList<>(batch);
+                float[][] vectors = new float[batch][];
                 for (int i = 0; i < batch; i++) {
-                    embeddings.add(new Embedding(meanPool(tokenVectors[i], attentionMask[i]), i));
+                    vectors[i] = meanPool(tokenVectors[i], attentionMask[i]);
                 }
-                return new EmbeddingResponse(embeddings);
+                return vectors;
             }
         } catch (OrtException e) {
             throw new IllegalStateException("Embedding failed: " + e.getMessage(), e);
