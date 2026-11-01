@@ -17,6 +17,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 @Service
 public class RetrievalService {
@@ -24,7 +27,8 @@ public class RetrievalService {
     private static final Logger log = LoggerFactory.getLogger(RetrievalService.class);
 
     static final int SMALL_DOC_CHARS = 12_000;   // at or below this, send every chunk (whole document)
-    static final int TOP_K = 8;                  // chunks per search query
+    static final int TOP_K = 20;                  // chunks per search query
+    static final int MAX_PER_PAGE = 3;           // one dense page can't take every slot
     static final int MAX_PASSAGES = 8;           // chunks sent to the model after merging
     static final double MIN_SIMILARITY = 0.25;
     static final int OVERVIEW_PASSAGES = 8;      // overview questions: spread of chunks across the whole document
@@ -111,14 +115,33 @@ public class RetrievalService {
             perQuery.add(hits);
         }
 
-        // 3. Merge without duplicates (same chunk found by two queries = same document id)
+        // 3. Merge: no duplicate ids or identical text, at most MAX_PER_PAGE chunks per page (Day 20)
         Map<String, Document> picked = new LinkedHashMap<>();
+        Set<String> seenText = new HashSet<>();
+        Map<Integer, Integer> perPage = new HashMap<>();
 
         // Pass 1: the best chunk of EACH query, so every sub-question is represented
         for (List<Document> hits : perQuery) {
             if (!hits.isEmpty()) {
-                picked.putIfAbsent(hits.get(0).getId(), hits.get(0));
+                tryPick(hits.get(0), picked, seenText, perPage, false);
             }
+        }
+
+        List<Document> ranked = perQuery.stream()
+                .flatMap(List::stream)
+                .sorted(Comparator.comparingDouble(RetrievalService::scoreOf).reversed())
+                .toList();
+
+        // Pass 2: highest scores first, but max MAX_PER_PAGE per page
+        for (Document hit : ranked) {
+            if (picked.size() >= MAX_PASSAGES) break;
+            tryPick(hit, picked, seenText, perPage, true);
+        }
+
+        // Pass 3: slots still free (answer really is on one page) -> fill without the page cap
+        for (Document hit : ranked) {
+            if (picked.size() >= MAX_PASSAGES) break;
+            tryPick(hit, picked, seenText, perPage, false);
         }
 
         // Pass 2: fill the remaining slots with the highest scores overall
@@ -162,6 +185,26 @@ public class RetrievalService {
         String q = question.toLowerCase();
         return q.contains(" and ") || q.contains(",") || q.contains(";") || q.contains(" also ")
                 || q.chars().filter(c -> c == '?').count() > 1;
+    }
+
+    // Adds a hit unless it is already picked, has identical text, or (capPages) its page is full
+    private static void tryPick(Document hit, Map<String, Document> picked, Set<String> seenText,
+                                Map<Integer, Integer> perPage, boolean capPages) {
+        if (picked.containsKey(hit.getId())) {
+            return;
+        }
+        String text = hit.getText() == null ? "" : hit.getText().strip();
+        if (seenText.contains(text)) {
+            return;                                   // repeated headers / duplicate pages waste slots
+        }
+        Integer page = toInteger(hit.getMetadata().get("page"));
+        int onPage = perPage.getOrDefault(page, 0);
+        if (capPages && page != null && onPage >= MAX_PER_PAGE) {
+            return;
+        }
+        picked.put(hit.getId(), hit);
+        seenText.add(text);
+        perPage.put(page, onPage + 1);
     }
 
     private static double scoreOf(Document d) {
